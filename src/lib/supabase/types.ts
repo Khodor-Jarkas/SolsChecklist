@@ -1,13 +1,15 @@
 export type Rarity =
-  | "common"
-  | "uncommon"
-  | "rare"
-  | "epic"
-  | "legendary"
-  | "mythic"
-  | "exalted"
-  | "celestial"
-  | "transcendent";
+  | "common"         // 1 – 999
+  | "epic"           // 1,000 – 9,999
+  | "unique"         // 10,000 – 99,999
+  | "legendary"      // 100,000 – 999,999
+  | "mythic"         // 1,000,000 – 10,000,000
+  | "exalted"        // 11,000,000 – 99,000,000
+  | "glorious"       // 99,900,000 – 999,000,000
+  | "transcendent"   // 1,000,000,000+
+  | "challenged"     // special: challenged auras
+  | "challenged_plus"// special: challenged+ auras
+  | "craftable";     // special: auras obtained via crafting
 
 type Timestamp = string;
 

@@ -67,7 +67,14 @@ In the Supabase **SQL Editor**, run the contents of these files in order:
 
 1. [`supabase/schema.sql`](supabase/schema.sql) — tables, RLS policies, profile
    auto-create trigger.
-2. [`supabase/seed.sql`](supabase/seed.sql) — sample auras / achievements / items.
+2. [`supabase/seed.sql`](supabase/seed.sql) — achievements + items.
+3. [`supabase/seed_auras.sql`](supabase/seed_auras.sql) — full aura catalog
+   (~233 auras sourced from the Sol's RNG wiki).
+
+If you ran a previous version of `schema.sql` and need to update the rarity
+enum, also run [`supabase/migrations/001_rarity_overhaul.sql`](supabase/migrations/001_rarity_overhaul.sql)
+first. It drops and recreates the auras + user_auras tables, so aura progress
+is reset (other progress is preserved).
 
 ### 4. Configure env vars
 

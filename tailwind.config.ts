@@ -2,14 +2,16 @@ import type { Config } from "tailwindcss";
 
 const RARITIES = [
   "common",
-  "uncommon",
-  "rare",
   "epic",
+  "unique",
   "legendary",
   "mythic",
   "exalted",
-  "celestial",
+  "glorious",
   "transcendent",
+  "challenged",
+  "challenged_plus",
+  "craftable",
 ];
 
 export default {
@@ -24,15 +26,17 @@ export default {
     extend: {
       colors: {
         rarity: {
-          common: "#9ca3af",
-          uncommon: "#10b981",
-          rare: "#3b82f6",
-          epic: "#a855f7",
-          legendary: "#f59e0b",
-          mythic: "#ef4444",
-          exalted: "#ec4899",
-          celestial: "#38bdf8",
-          transcendent: "#f472b6",
+          common: "#e5e7eb",          // white / light grey
+          epic: "#a855f7",            // purple
+          unique: "#f97316",          // orange
+          legendary: "#facc15",       // yellow
+          mythic: "#ec4899",          // pink
+          exalted: "#1e3a8a",         // dark blue
+          glorious: "#991b1b",        // dark red
+          transcendent: "#14b8a6",    // teal
+          challenged: "#9ca3af",      // grey
+          challenged_plus: "#4b5563", // dark grey
+          craftable: "#38bdf8",       // sky blue
         },
       },
       fontFamily: {
