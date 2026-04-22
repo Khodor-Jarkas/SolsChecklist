@@ -27,12 +27,39 @@ npm install
 ### 2. Create a Supabase project
 
 1. Sign up at [supabase.com](https://supabase.com) and create a new project.
-2. In the project dashboard, go to **Project Settings → API**. Copy:
-   - **Project URL** → this becomes `NEXT_PUBLIC_SUPABASE_URL`
-   - **anon public key** → this becomes `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+2. In the project dashboard, go to **Project Settings → API Keys**. Copy:
+   - **Project URL** (under the **API** section) → `NEXT_PUBLIC_SUPABASE_URL`.
+     Format: `https://<project-ref>.supabase.co`.
+   - **Publishable key** (starts with `sb_publishable_...`) → `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+     This is the new name for what used to be called the `anon` key.
+   - **Do NOT** copy the `sb_secret_...` key. It bypasses RLS and must never
+     be placed in a `NEXT_PUBLIC_*` variable — that ships the key to the
+     browser. This app doesn't need the secret key at all.
 3. In **Authentication → Providers**, make sure **Email** is enabled. For
    local dev it's convenient to turn off "Confirm email" (Auth → Policies)
    so you can sign up and log in immediately.
+
+#### Optional: Discord login
+
+To enable "Continue with Discord" on the sign-in / sign-up pages:
+
+1. Go to the [Discord Developer Portal](https://discord.com/developers/applications)
+   → **New Application** → give it a name → **OAuth2** tab.
+2. Copy the **Client ID** and **Client Secret**.
+3. Under **Redirects** in the Discord app, add:
+   `https://<your-project-ref>.supabase.co/auth/v1/callback`
+   (find this exact URL in Supabase dashboard → **Authentication → Providers
+   → Discord**; the dashboard shows you the value to paste.)
+4. In Supabase dashboard → **Authentication → Providers → Discord** →
+   toggle **Enable Sign in with Discord**, paste the Client ID + Secret,
+   and save.
+5. Set your site URL in Supabase dashboard → **Authentication → URL
+   Configuration → Site URL** to `http://localhost:3000` for dev (add your
+   Vercel URL later for prod). Also add both to **Redirect URLs** (allow
+   list).
+
+That's it — the Discord button will work end-to-end. Username is
+auto-populated from the Discord handle by the `handle_new_user` trigger.
 
 ### 3. Apply the schema
 
@@ -130,7 +157,7 @@ supabase/
 
 1. Push this repo to GitHub.
 2. [Import the project in Vercel](https://vercel.com/new).
-3. Add the two env vars (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`).
+3. Add the two env vars (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`).
 4. Deploy.
 
 Supabase's free tier and Vercel's hobby tier are both sufficient for a

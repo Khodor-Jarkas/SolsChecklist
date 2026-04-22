@@ -56,26 +56,43 @@ create table public.profiles (
 );
 
 -- Auto-create a profile when a new auth user is created.
+-- Username candidates (in order): our signup form → Discord handle →
+-- Discord display name → generic user_<shortid>. For OAuth signups the
+-- Supabase `raw_user_meta_data` carries provider-specific fields.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer set search_path = public
 as $$
 declare
-  uname text;
+  uname       text;
+  avatar      text;
+  meta        jsonb := coalesce(new.raw_user_meta_data, '{}'::jsonb);
 begin
   uname := coalesce(
-    nullif(trim(new.raw_user_meta_data ->> 'username'), ''),
+    nullif(trim(meta ->> 'username'), ''),
+    nullif(trim(meta ->> 'preferred_username'), ''),
+    nullif(trim(meta ->> 'user_name'), ''),
+    nullif(trim(meta ->> 'name'), ''),
+    nullif(trim(meta ->> 'full_name'), ''),
     'user_' || substr(new.id::text, 1, 8)
   );
+
+  -- Keep it filesystem / URL friendly.
+  uname := regexp_replace(uname, '[^a-zA-Z0-9_.-]', '_', 'g');
+  if length(uname) < 3 then
+    uname := uname || substr(md5(random()::text), 1, 4);
+  end if;
 
   -- Ensure uniqueness by appending a short suffix if needed.
   while exists (select 1 from public.profiles where username = uname) loop
     uname := uname || '_' || substr(md5(random()::text), 1, 4);
   end loop;
 
-  insert into public.profiles (id, username)
-  values (new.id, uname);
+  avatar := nullif(trim(meta ->> 'avatar_url'), '');
+
+  insert into public.profiles (id, username, avatar_url)
+  values (new.id, uname, avatar);
 
   return new;
 end;

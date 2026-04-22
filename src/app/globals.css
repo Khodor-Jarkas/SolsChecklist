@@ -3,14 +3,37 @@
 @tailwind utilities;
 
 :root {
-  --background: #0b0b14;
-  --foreground: #ededed;
-  --card: #14141f;
-  --card-hover: #1c1c2b;
-  --border: #2a2a3d;
+  /* Layered dark palette — slightly warmer than pure blue-black */
+  --background: #0a0a13;
+  --surface: #10101c;
+  --card: #15162a;
+  --card-hover: #1d1e38;
+  --border: #2a2b47;
+  --border-strong: #3a3c5c;
+
+  --foreground: #ececf4;
+  --foreground-muted: #a1a1b3;
+  --foreground-faint: #6b6c85;
+
   --accent: #a855f7;
+  --accent-hover: #9333ea;
+  --accent-soft: rgba(168, 85, 247, 0.15);
   --accent-foreground: #ffffff;
-  --muted: #6b7280;
+
+  --success: #10b981;
+  --danger: #ef4444;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(42, 43, 71, 0.4);
+  --shadow-card-hover: 0 4px 16px rgba(168, 85, 247, 0.08), 0 0 0 1px rgba(168, 85, 247, 0.3);
+}
+
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 html,
@@ -18,22 +41,43 @@ body {
   min-height: 100vh;
   background: var(--background);
   color: var(--foreground);
+  font-feature-settings: "ss01", "cv11"; /* Inter stylistic sets for a cleaner look */
+  letter-spacing: -0.005em;
 }
 
 body {
   background-image:
-    radial-gradient(circle at 15% 20%, rgba(168, 85, 247, 0.08), transparent 40%),
-    radial-gradient(circle at 85% 80%, rgba(59, 130, 246, 0.08), transparent 40%);
+    radial-gradient(ellipse 80% 50% at 20% -20%, rgba(168, 85, 247, 0.12), transparent 60%),
+    radial-gradient(ellipse 80% 50% at 80% 110%, rgba(59, 130, 246, 0.08), transparent 60%);
+  background-attachment: fixed;
 }
 
+/* Typography rhythm */
+h1, h2, h3, h4 {
+  letter-spacing: -0.02em;
+}
+
+/* Components */
 .card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 0.75rem;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  border-radius: var(--radius-md);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
-.card:hover {
+.card-interactive {
+  cursor: pointer;
+}
+.card-interactive:hover {
   background: var(--card-hover);
+  border-color: var(--border-strong);
+}
+
+.card-owned {
+  background: linear-gradient(135deg, var(--card), rgba(168, 85, 247, 0.04));
+  border-color: rgba(168, 85, 247, 0.3);
+}
+.card-owned:hover {
+  box-shadow: var(--shadow-card-hover);
 }
 
 .btn {
@@ -42,40 +86,120 @@ body {
   justify-content: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
+  border-radius: var(--radius-sm);
   font-weight: 500;
   font-size: 0.875rem;
+  line-height: 1.25rem;
   transition: all 0.15s ease;
   cursor: pointer;
   border: 1px solid transparent;
+  user-select: none;
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 .btn-primary {
   background: var(--accent);
   color: var(--accent-foreground);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
-.btn-primary:hover {
-  background: #9333ea;
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
 }
 .btn-ghost {
-  background: transparent;
+  background: var(--surface);
   color: var(--foreground);
   border-color: var(--border);
 }
-.btn-ghost:hover {
+.btn-ghost:hover:not(:disabled) {
   background: var(--card-hover);
+  border-color: var(--border-strong);
+}
+.btn-sm {
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
 }
 
 .input {
   width: 100%;
-  background: var(--card);
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 0.5rem;
+  border-radius: var(--radius-sm);
   padding: 0.5rem 0.75rem;
   color: var(--foreground);
   font-size: 0.875rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.input::placeholder {
+  color: var(--foreground-faint);
 }
 .input:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.25);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.checkbox {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  border: 2px solid var(--border-strong);
+  border-radius: 0.375rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  background: var(--surface);
+}
+.checkbox:hover {
+  border-color: var(--accent);
+}
+.checkbox[data-checked="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.checkbox[data-checked="true"]:hover {
+  background: var(--accent-hover);
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--card) 0%, var(--card-hover) 50%, var(--card) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+.animate-pop { animation: pop 0.25s ease-out; }
+
+/* Scrollbar styling for Webkit browsers */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--background); }
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+  border: 2px solid var(--background);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
