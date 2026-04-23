@@ -40,7 +40,8 @@ create table public.achievements (
   id            bigserial primary key,
   name          text not null unique,
   description   text not null,
-  category      text
+  category      text,
+  image_url     text
 );
 
 create table public.items (

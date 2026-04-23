@@ -94,16 +94,19 @@ export type Database = {
           name: string;
           description: string;
           category: string | null;
+          image_url: string | null;
         };
         Insert: {
           name: string;
           description: string;
           category?: string | null;
+          image_url?: string | null;
         };
         Update: {
           name?: string;
           description?: string;
           category?: string | null;
+          image_url?: string | null;
         };
         Relationships: [];
       };
