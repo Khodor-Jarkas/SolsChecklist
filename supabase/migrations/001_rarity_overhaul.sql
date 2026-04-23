@@ -32,13 +32,14 @@ create type rarity as enum (
 
 -- Recreate auras.
 create table public.auras (
-  id            bigserial primary key,
-  name          text not null unique,
-  rarity        rarity not null,
-  rarity_odds   bigint,
-  biome         text,
-  image_url     text,
-  description   text
+  id                 bigserial primary key,
+  name               text not null unique,
+  rarity             rarity not null,
+  rarity_odds        bigint,
+  native_biome_odds  bigint,
+  biome              text,
+  image_url          text,
+  description        text
 );
 
 -- Recreate user_auras with the same shape as schema.sql.

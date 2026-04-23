@@ -44,6 +44,7 @@ export type Database = {
           name: string;
           rarity: Rarity;
           rarity_odds: number | null;
+          native_biome_odds: number | null;
           biome: string | null;
           image_url: string | null;
           description: string | null;
@@ -52,6 +53,7 @@ export type Database = {
           name: string;
           rarity: Rarity;
           rarity_odds?: number | null;
+          native_biome_odds?: number | null;
           biome?: string | null;
           image_url?: string | null;
           description?: string | null;
@@ -60,6 +62,7 @@ export type Database = {
           name?: string;
           rarity?: Rarity;
           rarity_odds?: number | null;
+          native_biome_odds?: number | null;
           biome?: string | null;
           image_url?: string | null;
           description?: string | null;

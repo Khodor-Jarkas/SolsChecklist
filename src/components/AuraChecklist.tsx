@@ -11,6 +11,16 @@ type OwnedState = Record<number, { count: number; first_obtained_at: string }>;
 type Filter = "all" | "owned" | "missing";
 type Sort = "rarity" | "name" | "odds";
 
+// Only show the "Rolled x N" counter for these rarities — for common/epic/etc
+// tracking counts is noisy; for rarities this high, it's actually interesting.
+const COUNTER_RARITIES = new Set<Rarity>([
+  "glorious",
+  "transcendent",
+  "challenged",
+  "challenged_plus",
+  "craftable",
+]);
+
 export function AuraChecklist({
   auras,
   initialOwned,
@@ -23,9 +33,10 @@ export function AuraChecklist({
   const [rarity, setRarity] = useState<Rarity | "all">("all");
   const [biome, setBiome] = useState<string>("all");
   const [filter, setFilter] = useState<Filter>("all");
-  const [sort, setSort] = useState<Sort>("rarity");
+  const [sort, setSort] = useState<Sort>("odds");
   const [query, setQuery] = useState("");
   const [justToggled, setJustToggled] = useState<number | null>(null);
+  const [bulkPending, setBulkPending] = useState<Rarity | null>(null);
   const [, startTransition] = useTransition();
 
   const biomes = useMemo(() => {
@@ -36,7 +47,7 @@ export function AuraChecklist({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const list = auras.filter((a) => {
+    return auras.filter((a) => {
       if (rarity !== "all" && a.rarity !== rarity) return false;
       if (biome !== "all" && a.biome !== biome) return false;
       const has = Boolean(owned[a.id]);
@@ -45,16 +56,25 @@ export function AuraChecklist({
       if (q && !a.name.toLowerCase().includes(q)) return false;
       return true;
     });
+  }, [auras, owned, rarity, biome, filter, query]);
 
-    return list.sort((a, b) => {
+  // Group by rarity tier — sections. Within each, sort by `sort`.
+  const sections = useMemo(() => {
+    const byTier = new Map<Rarity, Aura[]>();
+    for (const a of filtered) {
+      const t = a.rarity as Rarity;
+      if (!byTier.has(t)) byTier.set(t, []);
+      byTier.get(t)!.push(a);
+    }
+    const sorter = (a: Aura, b: Aura) => {
       if (sort === "name") return a.name.localeCompare(b.name);
       if (sort === "odds") return (b.rarity_odds ?? 0) - (a.rarity_odds ?? 0);
-      // rarity (default)
-      const r = RARITY_ORDER.indexOf(a.rarity as Rarity) - RARITY_ORDER.indexOf(b.rarity as Rarity);
-      if (r !== 0) return r;
-      return (a.rarity_odds ?? 0) - (b.rarity_odds ?? 0);
-    });
-  }, [auras, owned, rarity, biome, filter, query, sort]);
+      return (a.rarity_odds ?? 0) - (b.rarity_odds ?? 0); // rarity: within-tier, easiest first
+    };
+    return RARITY_ORDER
+      .filter((r) => byTier.has(r))
+      .map((r) => ({ rarity: r, auras: byTier.get(r)!.slice().sort(sorter) }));
+  }, [filtered, sort]);
 
   const stats = useMemo(() => {
     const ownedCount = Object.keys(owned).length;
@@ -115,9 +135,37 @@ export function AuraChecklist({
     });
   }
 
+  async function bulkMark(sectionAuras: Aura[], tier: Rarity) {
+    const missing = sectionAuras.filter((a) => !owned[a.id]);
+    if (missing.length === 0) return;
+
+    setBulkPending(tier);
+    const prev = owned;
+    const next: OwnedState = { ...owned };
+    const now = new Date().toISOString();
+    for (const a of missing) next[a.id] = { count: 1, first_obtained_at: now };
+    setOwned(next);
+
+    const { data: userData } = await supabase.auth.getUser();
+    const uid = userData.user?.id;
+    if (!uid) {
+      setOwned(prev);
+      setBulkPending(null);
+      return;
+    }
+
+    const rows = missing.map((a) => ({ user_id: uid, aura_id: a.id, count: 1 }));
+    const { error } = await supabase.from("user_auras").insert(rows);
+    if (error) {
+      setOwned(prev);
+      console.error(error);
+    }
+    setBulkPending(null);
+  }
+
   return (
     <div className="space-y-5">
-      {/* Progress bar */}
+      {/* Overall progress */}
       <div className="card p-4 space-y-3">
         <div className="flex items-center justify-between text-sm">
           <span className="text-[var(--foreground-muted)]">Overall progress</span>
@@ -169,11 +217,11 @@ export function AuraChecklist({
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value as Sort)}
-          className="input max-w-[10rem]"
+          className="input max-w-[11rem]"
         >
-          <option value="rarity">Sort: rarity</option>
-          <option value="name">Sort: A–Z</option>
           <option value="odds">Sort: rarest first</option>
+          <option value="rarity">Sort: easiest first</option>
+          <option value="name">Sort: A–Z</option>
         </select>
 
         <div className="flex items-center gap-1 ml-auto">
@@ -189,88 +237,126 @@ export function AuraChecklist({
         </div>
       </div>
 
-      {/* Grid */}
-      {filtered.length === 0 ? (
+      {/* Sections */}
+      {sections.length === 0 ? (
         <EmptyState />
       ) : (
-        <ul className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((a) => {
-            const state = owned[a.id];
-            const has = Boolean(state);
-            const r = a.rarity as Rarity;
+        <div className="space-y-10">
+          {sections.map(({ rarity: r, auras: list }) => {
+            const ownedInSection = list.filter((a) => owned[a.id]).length;
+            const allOwned = ownedInSection === list.length;
             const rarityColor = RARITY_CLASS[r].split(" ")[0];
             return (
-              <li
-                key={a.id}
-                className={`card p-4 relative overflow-hidden ${has ? "card-owned" : ""}`}
-              >
-                {/* Rarity accent bar on left edge */}
-                <div className={`absolute left-0 top-0 bottom-0 w-1 bg-rarity-${r}`} />
-
-                <div className="flex gap-3 pl-2">
+              <section key={r} className="space-y-3">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className={`h-1.5 w-8 rounded-full bg-rarity-${r}`} />
+                  <h2 className={`text-lg font-semibold ${rarityColor}`}>
+                    {RARITY_LABEL[r]}
+                  </h2>
+                  <span className="text-xs font-mono text-[var(--foreground-muted)]">
+                    {ownedInSection} / {list.length}
+                  </span>
                   <button
-                    onClick={() => toggle(a)}
-                    aria-label={has ? "Mark as missing" : "Mark as owned"}
-                    data-checked={has}
-                    className={`checkbox mt-0.5 ${justToggled === a.id ? "animate-pop" : ""}`}
+                    onClick={() => bulkMark(list, r)}
+                    disabled={allOwned || bulkPending === r}
+                    className="btn btn-sm btn-ghost ml-auto"
                   >
-                    {has && (
-                      <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="3">
-                        <path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    )}
+                    {allOwned
+                      ? "All marked"
+                      : bulkPending === r
+                        ? "Marking…"
+                        : `Mark all ${RARITY_LABEL[r]}`}
                   </button>
-
-                  <AuraThumb aura={a} rarity={r} owned={has} />
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className={`font-medium truncate ${has ? "" : "text-[var(--foreground-muted)]"}`}>{a.name}</h3>
-                      <span className={`badge ${rarityColor} shrink-0`}>
-                        {RARITY_LABEL[r]}
-                      </span>
-                    </div>
-                    <div className="text-xs text-[var(--foreground-faint)] mt-1 font-mono">
-                      {formatOdds(a.rarity_odds)}
-                      {a.biome && <span> • {a.biome}</span>}
-                    </div>
-                    {a.description && (
-                      <p className="text-xs text-[var(--foreground-muted)] mt-2 line-clamp-2 leading-relaxed">
-                        {a.description}
-                      </p>
-                    )}
-
-                    {has && (
-                      <div className="mt-3 flex items-center gap-2 pt-3 border-t border-[var(--border)]">
-                        <span className="text-xs text-[var(--foreground-muted)]">Rolled</span>
-                        <div className="flex items-center ml-auto gap-1">
-                          <button
-                            onClick={() => incrementCount(a, -1)}
-                            className="h-6 w-6 rounded-md border border-[var(--border)] hover:bg-[var(--card-hover)] text-sm leading-none disabled:opacity-40"
-                            disabled={state.count <= 1}
-                            aria-label="Decrease count"
-                          >
-                            −
-                          </button>
-                          <span className="text-sm font-mono font-semibold w-8 text-center tabular-nums">
-                            {state.count}×
-                          </span>
-                          <button
-                            onClick={() => incrementCount(a, 1)}
-                            className="h-6 w-6 rounded-md border border-[var(--border)] hover:bg-[var(--card-hover)] text-sm leading-none"
-                            aria-label="Increase count"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
                 </div>
-              </li>
+
+                <ul className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                  {list.map((a) => {
+                    const state = owned[a.id];
+                    const has = Boolean(state);
+                    const showCounter = COUNTER_RARITIES.has(r);
+                    return (
+                      <li
+                        key={a.id}
+                        className={`card p-4 relative overflow-hidden ${has ? "card-owned" : ""}`}
+                      >
+                        <div className={`absolute left-0 top-0 bottom-0 w-1 bg-rarity-${r}`} />
+
+                        <div className="flex gap-3 pl-2">
+                          <button
+                            onClick={() => toggle(a)}
+                            aria-label={has ? "Mark as missing" : "Mark as owned"}
+                            data-checked={has}
+                            className={`checkbox mt-0.5 ${justToggled === a.id ? "animate-pop" : ""}`}
+                          >
+                            {has && (
+                              <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="3">
+                                <path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            )}
+                          </button>
+
+                          <AuraThumb aura={a} rarity={r} owned={has} />
+
+                          <div className="flex-1 min-w-0">
+                            <h3 className={`font-medium leading-tight ${has ? "" : "text-[var(--foreground-muted)]"}`}>
+                              {a.name}
+                            </h3>
+
+                            <div className="text-xs text-[var(--foreground-faint)] mt-1 font-mono space-y-0.5">
+                              <div>{formatOdds(a.rarity_odds)}</div>
+                              {a.biome && (
+                                <div>
+                                  <span className="text-[var(--foreground-muted)]">{a.biome}</span>
+                                  {a.native_biome_odds && (
+                                    <span className={`ml-1 ${rarityColor}`}>
+                                      · {formatOdds(a.native_biome_odds)} native
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+
+                            {a.description && (
+                              <p className="text-xs text-[var(--foreground-muted)] mt-2 line-clamp-2 leading-relaxed">
+                                {a.description}
+                              </p>
+                            )}
+
+                            {has && showCounter && (
+                              <div className="mt-3 flex items-center gap-2 pt-3 border-t border-[var(--border)]">
+                                <span className="text-xs text-[var(--foreground-muted)]">Rolled</span>
+                                <div className="flex items-center ml-auto gap-1">
+                                  <button
+                                    onClick={() => incrementCount(a, -1)}
+                                    className="h-6 w-6 rounded-md border border-[var(--border)] hover:bg-[var(--card-hover)] text-sm leading-none disabled:opacity-40"
+                                    disabled={state.count <= 1}
+                                    aria-label="Decrease count"
+                                  >
+                                    −
+                                  </button>
+                                  <span className="text-sm font-mono font-semibold w-8 text-center tabular-nums">
+                                    {state.count}×
+                                  </span>
+                                  <button
+                                    onClick={() => incrementCount(a, 1)}
+                                    className="h-6 w-6 rounded-md border border-[var(--border)] hover:bg-[var(--card-hover)] text-sm leading-none"
+                                    aria-label="Increase count"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
             );
           })}
-        </ul>
+        </div>
       )}
     </div>
   );
@@ -285,7 +371,7 @@ function AuraThumb({
   rarity: Rarity;
   owned: boolean;
 }) {
-  const size = "h-12 w-12";
+  const size = "h-20 w-20";
   const ring = owned
     ? `bg-rarity-${rarity}/15 border-rarity-${rarity}/60`
     : "bg-[var(--surface)] border-[var(--border)]";
@@ -297,15 +383,14 @@ function AuraThumb({
         src={aura.image_url}
         alt={aura.name}
         loading="lazy"
-        className={`${size} shrink-0 rounded-md object-cover border ${ring}`}
+        className={`${size} shrink-0 rounded-lg object-contain border-2 ${ring} p-1`}
       />
     );
   }
 
-  // Fallback: first letter on a rarity-tinted tile.
   return (
     <div
-      className={`${size} shrink-0 rounded-md border flex items-center justify-center text-lg font-semibold text-rarity-${rarity} ${ring}`}
+      className={`${size} shrink-0 rounded-lg border-2 flex items-center justify-center text-3xl font-semibold text-rarity-${rarity} ${ring}`}
     >
       {aura.name.replace(/[^A-Za-z★]/g, "").charAt(0).toUpperCase() || "?"}
     </div>

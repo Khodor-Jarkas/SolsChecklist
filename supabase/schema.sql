@@ -23,13 +23,14 @@ create type rarity as enum (
 -- 2. Catalog tables (global, read-only for clients)
 -- ============================================================================
 create table public.auras (
-  id            bigserial primary key,
-  name          text not null unique,
-  rarity        rarity not null,
-  rarity_odds   bigint,                -- e.g. 1_000_000 means 1 in 1,000,000
-  biome         text,
-  image_url     text,
-  description   text
+  id                 bigserial primary key,
+  name               text not null unique,
+  rarity             rarity not null,
+  rarity_odds        bigint,           -- global odds: e.g. 1_000_000 = 1 in 1M
+  native_biome_odds  bigint,           -- better odds when in `biome` if any
+  biome              text,
+  image_url          text,
+  description        text
 );
 
 create table public.achievements (
