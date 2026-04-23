@@ -46,6 +46,8 @@ export type Database = {
           rarity_odds: number | null;
           native_biome_odds: number | null;
           biome: string | null;
+          event_name: string | null;
+          event_year: number | null;
           image_url: string | null;
           description: string | null;
         };
@@ -55,6 +57,8 @@ export type Database = {
           rarity_odds?: number | null;
           native_biome_odds?: number | null;
           biome?: string | null;
+          event_name?: string | null;
+          event_year?: number | null;
           image_url?: string | null;
           description?: string | null;
         };
@@ -64,6 +68,8 @@ export type Database = {
           rarity_odds?: number | null;
           native_biome_odds?: number | null;
           biome?: string | null;
+          event_name?: string | null;
+          event_year?: number | null;
           image_url?: string | null;
           description?: string | null;
         };

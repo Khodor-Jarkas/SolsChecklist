@@ -10,6 +10,25 @@ type OwnedState = Record<number, { count: number; first_obtained_at: string }>;
 
 type Filter = "all" | "owned" | "missing";
 type Sort = "rarity" | "name" | "odds";
+type View = "rarity" | "events";
+
+// Rough calendar order so event sections don't land alphabetical.
+const EVENT_ORDER = [
+  "Valentine's Day",
+  "April Fools",
+  "Easter",
+  "Summer",
+  "Innovator",
+  "Halloween",
+  "Winter",
+  "Christmas",
+  "Anniversary",
+];
+
+function eventRank(name: string): number {
+  const i = EVENT_ORDER.indexOf(name);
+  return i === -1 ? 999 : i;
+}
 
 // Only show the "Rolled x N" counter for these rarities — for common/epic/etc
 // tracking counts is noisy; for rarities this high, it's actually interesting.
@@ -32,8 +51,10 @@ export function AuraChecklist({
   const [owned, setOwned] = useState<OwnedState>(initialOwned);
   const [rarity, setRarity] = useState<Rarity | "all">("all");
   const [biome, setBiome] = useState<string>("all");
+  const [eventName, setEventName] = useState<string>("all");
   const [filter, setFilter] = useState<Filter>("all");
   const [sort, setSort] = useState<Sort>("odds");
+  const [view, setView] = useState<View>("rarity");
   const [query, setQuery] = useState("");
   const [justToggled, setJustToggled] = useState<number | null>(null);
   const [bulkPending, setBulkPending] = useState<Rarity | null>(null);
@@ -45,18 +66,35 @@ export function AuraChecklist({
     return ["all", ...Array.from(set).sort()];
   }, [auras]);
 
+  const eventNames = useMemo(() => {
+    const set = new Set<string>();
+    for (const a of auras) if (a.event_name) set.add(a.event_name);
+    return ["all", ...Array.from(set).sort((a, b) => eventRank(a) - eventRank(b))];
+  }, [auras]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return auras.filter((a) => {
+      if (view === "events" && !a.event_name) return false;
       if (rarity !== "all" && a.rarity !== rarity) return false;
       if (biome !== "all" && a.biome !== biome) return false;
+      if (eventName !== "all" && a.event_name !== eventName) return false;
       const has = Boolean(owned[a.id]);
       if (filter === "owned" && !has) return false;
       if (filter === "missing" && has) return false;
       if (q && !a.name.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [auras, owned, rarity, biome, filter, query]);
+  }, [auras, owned, rarity, biome, eventName, filter, query, view]);
+
+  const sorter = useMemo(
+    () => (a: Aura, b: Aura) => {
+      if (sort === "name") return a.name.localeCompare(b.name);
+      if (sort === "odds") return (b.rarity_odds ?? 0) - (a.rarity_odds ?? 0);
+      return (a.rarity_odds ?? 0) - (b.rarity_odds ?? 0); // rarity: within-tier, easiest first
+    },
+    [sort],
+  );
 
   // Group by rarity tier — sections. Within each, sort by `sort`.
   const sections = useMemo(() => {
@@ -66,15 +104,31 @@ export function AuraChecklist({
       if (!byTier.has(t)) byTier.set(t, []);
       byTier.get(t)!.push(a);
     }
-    const sorter = (a: Aura, b: Aura) => {
-      if (sort === "name") return a.name.localeCompare(b.name);
-      if (sort === "odds") return (b.rarity_odds ?? 0) - (a.rarity_odds ?? 0);
-      return (a.rarity_odds ?? 0) - (b.rarity_odds ?? 0); // rarity: within-tier, easiest first
-    };
     return RARITY_ORDER
       .filter((r) => byTier.has(r))
       .map((r) => ({ rarity: r, auras: byTier.get(r)!.slice().sort(sorter) }));
-  }, [filtered, sort]);
+  }, [filtered, sorter]);
+
+  // Group by event -> year. Years sorted newest first within each event.
+  const eventSections = useMemo(() => {
+    const byEvent = new Map<string, Map<number, Aura[]>>();
+    for (const a of filtered) {
+      if (!a.event_name) continue;
+      const year = a.event_year ?? 0;
+      if (!byEvent.has(a.event_name)) byEvent.set(a.event_name, new Map());
+      const yearMap = byEvent.get(a.event_name)!;
+      if (!yearMap.has(year)) yearMap.set(year, []);
+      yearMap.get(year)!.push(a);
+    }
+    return Array.from(byEvent.entries())
+      .sort(([a], [b]) => eventRank(a) - eventRank(b) || a.localeCompare(b))
+      .map(([name, yearMap]) => ({
+        name,
+        years: Array.from(yearMap.entries())
+          .sort(([a], [b]) => b - a)
+          .map(([year, list]) => ({ year, auras: list.slice().sort(sorter) })),
+      }));
+  }, [filtered, sorter]);
 
   const stats = useMemo(() => {
     const ownedCount = Object.keys(owned).length;
@@ -182,6 +236,22 @@ export function AuraChecklist({
         </div>
       </div>
 
+      {/* View toggle */}
+      <div className="card p-1 inline-flex gap-1">
+        {([
+          { key: "rarity" as const, label: "By rarity" },
+          { key: "events" as const, label: "By event" },
+        ]).map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setView(key)}
+            className={`btn btn-sm ${view === key ? "btn-primary" : "btn-ghost"}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* Filters */}
       <div className="card p-4 flex flex-wrap gap-2.5 items-center">
         <input
@@ -214,6 +284,18 @@ export function AuraChecklist({
           </select>
         )}
 
+        {eventNames.length > 1 && (
+          <select
+            value={eventName}
+            onChange={(e) => setEventName(e.target.value)}
+            className="input max-w-[12rem]"
+          >
+            {eventNames.map((e) => (
+              <option key={e} value={e}>{e === "all" ? "All events" : e}</option>
+            ))}
+          </select>
+        )}
+
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value as Sort)}
@@ -238,9 +320,9 @@ export function AuraChecklist({
       </div>
 
       {/* Sections */}
-      {sections.length === 0 ? (
+      {(view === "rarity" ? sections.length : eventSections.length) === 0 ? (
         <EmptyState />
-      ) : (
+      ) : view === "rarity" ? (
         <div className="space-y-10">
           {sections.map(({ rarity: r, auras: list }) => {
             const ownedInSection = list.filter((a) => owned[a.id]).length;
@@ -268,97 +350,174 @@ export function AuraChecklist({
                         : `Mark all ${RARITY_LABEL[r]}`}
                   </button>
                 </div>
-
-                <ul className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                  {list.map((a) => {
-                    const state = owned[a.id];
-                    const has = Boolean(state);
-                    const showCounter = COUNTER_RARITIES.has(r);
+                <AuraGrid
+                  list={list}
+                  owned={owned}
+                  justToggled={justToggled}
+                  toggle={toggle}
+                  incrementCount={incrementCount}
+                  showRarity={false}
+                />
+              </section>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="space-y-12">
+          {eventSections.map(({ name, years }) => {
+            const allInEvent = years.flatMap((y) => y.auras);
+            const ownedInEvent = allInEvent.filter((a) => owned[a.id]).length;
+            return (
+              <section key={name} className="space-y-5">
+                <div className="flex items-center gap-3 flex-wrap border-b border-[var(--border)] pb-2">
+                  <h2 className="text-xl font-semibold tracking-tight">{name}</h2>
+                  <span className="text-xs font-mono text-[var(--foreground-muted)]">
+                    {ownedInEvent} / {allInEvent.length}
+                  </span>
+                </div>
+                <div className="space-y-8">
+                  {years.map(({ year, auras: list }) => {
+                    const ownedInYear = list.filter((a) => owned[a.id]).length;
                     return (
-                      <li
-                        key={a.id}
-                        className={`card p-4 relative overflow-hidden ${has ? "card-owned" : ""}`}
-                      >
-                        <div className={`absolute left-0 top-0 bottom-0 w-1 bg-rarity-${r}`} />
-
-                        <div className="flex gap-3 pl-2">
-                          <button
-                            onClick={() => toggle(a)}
-                            aria-label={has ? "Mark as missing" : "Mark as owned"}
-                            data-checked={has}
-                            className={`checkbox mt-0.5 ${justToggled === a.id ? "animate-pop" : ""}`}
-                          >
-                            {has && (
-                              <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="3">
-                                <path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round" />
-                              </svg>
-                            )}
-                          </button>
-
-                          <AuraThumb aura={a} rarity={r} owned={has} />
-
-                          <div className="flex-1 min-w-0">
-                            <h3 className={`font-medium leading-tight ${has ? "" : "text-[var(--foreground-muted)]"}`}>
-                              {a.name}
-                            </h3>
-
-                            <div className="text-xs text-[var(--foreground-faint)] mt-1 font-mono space-y-0.5">
-                              <div>{formatOdds(a.rarity_odds)}</div>
-                              {a.biome && (
-                                <div>
-                                  <span className="text-[var(--foreground-muted)]">{a.biome}</span>
-                                  {a.native_biome_odds && (
-                                    <span className={`ml-1 ${rarityColor}`}>
-                                      · {formatOdds(a.native_biome_odds)} native
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-
-                            {a.description && (
-                              <p className="text-xs text-[var(--foreground-muted)] mt-2 line-clamp-2 leading-relaxed">
-                                {a.description}
-                              </p>
-                            )}
-
-                            {has && showCounter && (
-                              <div className="mt-3 flex items-center gap-2 pt-3 border-t border-[var(--border)]">
-                                <span className="text-xs text-[var(--foreground-muted)]">Rolled</span>
-                                <div className="flex items-center ml-auto gap-1">
-                                  <button
-                                    onClick={() => incrementCount(a, -1)}
-                                    className="h-6 w-6 rounded-md border border-[var(--border)] hover:bg-[var(--card-hover)] text-sm leading-none disabled:opacity-40"
-                                    disabled={state.count <= 1}
-                                    aria-label="Decrease count"
-                                  >
-                                    −
-                                  </button>
-                                  <span className="text-sm font-mono font-semibold w-8 text-center tabular-nums">
-                                    {state.count}×
-                                  </span>
-                                  <button
-                                    onClick={() => incrementCount(a, 1)}
-                                    className="h-6 w-6 rounded-md border border-[var(--border)] hover:bg-[var(--card-hover)] text-sm leading-none"
-                                    aria-label="Increase count"
-                                  >
-                                    +
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
+                      <div key={year} className="space-y-3">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--foreground-muted)]">
+                            {year || "Undated"}
+                          </h3>
+                          <span className="text-xs font-mono text-[var(--foreground-faint)]">
+                            {ownedInYear} / {list.length}
+                          </span>
                         </div>
-                      </li>
+                        <AuraGrid
+                          list={list}
+                          owned={owned}
+                          justToggled={justToggled}
+                          toggle={toggle}
+                          incrementCount={incrementCount}
+                          showRarity
+                        />
+                      </div>
                     );
                   })}
-                </ul>
+                </div>
               </section>
             );
           })}
         </div>
       )}
     </div>
+  );
+}
+
+function AuraGrid({
+  list,
+  owned,
+  justToggled,
+  toggle,
+  incrementCount,
+  showRarity = false,
+}: {
+  list: Aura[];
+  owned: OwnedState;
+  justToggled: number | null;
+  toggle: (a: Aura) => void;
+  incrementCount: (a: Aura, d: number) => void;
+  showRarity?: boolean;
+}) {
+  return (
+    <ul className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+      {list.map((a) => {
+        const r = a.rarity as Rarity;
+        const state = owned[a.id];
+        const has = Boolean(state);
+        const showCounter = COUNTER_RARITIES.has(r);
+        const rarityColor = RARITY_CLASS[r].split(" ")[0];
+        return (
+          <li
+            key={a.id}
+            className={`card p-4 relative overflow-hidden ${has ? "card-owned" : ""}`}
+          >
+            <div className={`absolute left-0 top-0 bottom-0 w-1 bg-rarity-${r}`} />
+
+            <div className="flex gap-3 pl-2">
+              <button
+                onClick={() => toggle(a)}
+                aria-label={has ? "Mark as missing" : "Mark as owned"}
+                data-checked={has}
+                className={`checkbox mt-0.5 ${justToggled === a.id ? "animate-pop" : ""}`}
+              >
+                {has && (
+                  <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="3">
+                    <path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </button>
+
+              <AuraThumb aura={a} rarity={r} owned={has} />
+
+              <div className="flex-1 min-w-0">
+                <h3 className={`font-medium leading-tight ${has ? "" : "text-[var(--foreground-muted)]"}`}>
+                  {a.name}
+                </h3>
+
+                <div className="text-xs text-[var(--foreground-faint)] mt-1 font-mono space-y-0.5">
+                  {showRarity && <div className={rarityColor}>{RARITY_LABEL[r]}</div>}
+                  <div>{formatOdds(a.rarity_odds)}</div>
+                  {a.biome && (
+                    <div>
+                      <span className="text-[var(--foreground-muted)]">{a.biome}</span>
+                      {a.native_biome_odds && (
+                        <span className={`ml-1 ${rarityColor}`}>
+                          · {formatOdds(a.native_biome_odds)} native
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {a.event_name && (
+                    <div className="text-[var(--foreground-muted)]">
+                      {a.event_name}
+                      {a.event_year ? ` ${a.event_year}` : ""}
+                    </div>
+                  )}
+                </div>
+
+                {a.description && (
+                  <p className="text-xs text-[var(--foreground-muted)] mt-2 line-clamp-2 leading-relaxed">
+                    {a.description}
+                  </p>
+                )}
+
+                {has && showCounter && (
+                  <div className="mt-3 flex items-center gap-2 pt-3 border-t border-[var(--border)]">
+                    <span className="text-xs text-[var(--foreground-muted)]">Rolled</span>
+                    <div className="flex items-center ml-auto gap-1">
+                      <button
+                        onClick={() => incrementCount(a, -1)}
+                        className="h-6 w-6 rounded-md border border-[var(--border)] hover:bg-[var(--card-hover)] text-sm leading-none disabled:opacity-40"
+                        disabled={state.count <= 1}
+                        aria-label="Decrease count"
+                      >
+                        −
+                      </button>
+                      <span className="text-sm font-mono font-semibold w-8 text-center tabular-nums">
+                        {state.count}×
+                      </span>
+                      <button
+                        onClick={() => incrementCount(a, 1)}
+                        className="h-6 w-6 rounded-md border border-[var(--border)] hover:bg-[var(--card-hover)] text-sm leading-none"
+                        aria-label="Increase count"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

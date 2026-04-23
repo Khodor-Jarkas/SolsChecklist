@@ -29,6 +29,8 @@ create table public.auras (
   rarity_odds        bigint,           -- global odds: e.g. 1_000_000 = 1 in 1M
   native_biome_odds  bigint,           -- better odds when in `biome` if any
   biome              text,
+  event_name         text,             -- e.g. 'Easter', 'Summer', 'Winter', 'Anniversary'
+  event_year         int,              -- year the aura was introduced/available
   image_url          text,
   description        text
 );
@@ -171,6 +173,7 @@ create policy "user_items self delete"  on public.user_items        for delete u
 -- ============================================================================
 create index auras_rarity_idx on public.auras(rarity);
 create index auras_biome_idx  on public.auras(biome);
+create index auras_event_idx  on public.auras(event_name, event_year);
 create index user_auras_user_idx on public.user_auras(user_id);
 create index user_ach_user_idx   on public.user_achievements(user_id);
 create index user_items_user_idx on public.user_items(user_id);
