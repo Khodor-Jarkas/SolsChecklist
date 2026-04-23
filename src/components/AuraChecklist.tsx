@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { RARITY_LABEL, RARITY_ORDER, RARITY_CLASS, formatOdds } from "@/lib/rarity";
 import type { Database, Rarity } from "@/lib/supabase/types";
@@ -362,6 +362,9 @@ export function AuraChecklist({
   );
 }
 
+// Per-URL cache so the same GIF is only captured once across remounts.
+const frameCache = new Map<string, string>();
+
 function AuraThumb({
   aura,
   rarity,
@@ -375,25 +378,70 @@ function AuraThumb({
   const ring = owned
     ? `bg-rarity-${rarity}/15 border-rarity-${rarity}/60`
     : "bg-[var(--surface)] border-[var(--border)]";
+  const classes = `${size} shrink-0 rounded-lg object-contain border-2 ${ring} p-1`;
 
-  if (aura.image_url) {
+  const [hovered, setHovered] = useState(false);
+  const [staticSrc, setStaticSrc] = useState<string | null>(
+    aura.image_url ? (frameCache.get(aura.image_url) ?? null) : null,
+  );
+
+  // Capture the first frame of the GIF once, so it can render frozen by default.
+  // Requires CORS (Fandom's static.wikia.nocookie.net sends Access-Control-Allow-Origin: *);
+  // if the canvas gets tainted for any reason we silently fall back to the live GIF.
+  useEffect(() => {
+    const url = aura.image_url;
+    if (!url || frameCache.has(url)) return;
+
+    let cancelled = false;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.decoding = "async";
+    img.onload = () => {
+      if (cancelled) return;
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth || 150;
+        canvas.height = img.naturalHeight || 150;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.drawImage(img, 0, 0);
+        const dataUrl = canvas.toDataURL("image/png");
+        frameCache.set(url, dataUrl);
+        setStaticSrc(dataUrl);
+      } catch {
+        // Tainted canvas — stays on live GIF.
+      }
+    };
+    img.src = url;
+    return () => {
+      cancelled = true;
+    };
+  }, [aura.image_url]);
+
+  if (!aura.image_url) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={aura.image_url}
-        alt={aura.name}
-        loading="lazy"
-        className={`${size} shrink-0 rounded-lg object-contain border-2 ${ring} p-1`}
-      />
+      <div
+        className={`${size} shrink-0 rounded-lg border-2 flex items-center justify-center text-3xl font-semibold text-rarity-${rarity} ${ring}`}
+      >
+        {aura.name.replace(/[^A-Za-z★]/g, "").charAt(0).toUpperCase() || "?"}
+      </div>
     );
   }
 
+  // Show the live GIF while hovering, or while the first-frame capture is
+  // still pending. Freeze to the captured PNG otherwise.
+  const shownSrc = hovered || !staticSrc ? aura.image_url : staticSrc;
+
   return (
-    <div
-      className={`${size} shrink-0 rounded-lg border-2 flex items-center justify-center text-3xl font-semibold text-rarity-${rarity} ${ring}`}
-    >
-      {aura.name.replace(/[^A-Za-z★]/g, "").charAt(0).toUpperCase() || "?"}
-    </div>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={shownSrc}
+      alt={aura.name}
+      loading="lazy"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className={classes}
+    />
   );
 }
 
