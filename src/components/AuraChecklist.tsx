@@ -221,6 +221,8 @@ export function AuraChecklist({
                     )}
                   </button>
 
+                  <AuraThumb aura={a} rarity={r} owned={has} />
+
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <h3 className={`font-medium truncate ${has ? "" : "text-[var(--foreground-muted)]"}`}>{a.name}</h3>
@@ -270,6 +272,42 @@ export function AuraChecklist({
           })}
         </ul>
       )}
+    </div>
+  );
+}
+
+function AuraThumb({
+  aura,
+  rarity,
+  owned,
+}: {
+  aura: Aura;
+  rarity: Rarity;
+  owned: boolean;
+}) {
+  const size = "h-12 w-12";
+  const ring = owned
+    ? `bg-rarity-${rarity}/15 border-rarity-${rarity}/60`
+    : "bg-[var(--surface)] border-[var(--border)]";
+
+  if (aura.image_url) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={aura.image_url}
+        alt={aura.name}
+        loading="lazy"
+        className={`${size} shrink-0 rounded-md object-cover border ${ring}`}
+      />
+    );
+  }
+
+  // Fallback: first letter on a rarity-tinted tile.
+  return (
+    <div
+      className={`${size} shrink-0 rounded-md border flex items-center justify-center text-lg font-semibold text-rarity-${rarity} ${ring}`}
+    >
+      {aura.name.replace(/[^A-Za-z★]/g, "").charAt(0).toUpperCase() || "?"}
     </div>
   );
 }
