@@ -31,6 +31,7 @@ create table public.auras (
   biome              text,
   event_name         text,             -- e.g. 'Easter', 'Summer', 'Winter', 'Anniversary'
   event_year         int,              -- year the aura was introduced/available
+  obtainment         text,             -- how to obtain: roll, craft, shop, battle_pass, quest, wheel, ugc, login
   image_url          text,
   description        text
 );
@@ -171,9 +172,10 @@ create policy "user_items self delete"  on public.user_items        for delete u
 -- ============================================================================
 -- 6. Helpful indexes
 -- ============================================================================
-create index auras_rarity_idx on public.auras(rarity);
-create index auras_biome_idx  on public.auras(biome);
-create index auras_event_idx  on public.auras(event_name, event_year);
+create index auras_rarity_idx     on public.auras(rarity);
+create index auras_biome_idx      on public.auras(biome);
+create index auras_event_idx      on public.auras(event_name, event_year);
+create index auras_obtainment_idx on public.auras(obtainment);
 create index user_auras_user_idx on public.user_auras(user_id);
 create index user_ach_user_idx   on public.user_achievements(user_id);
 create index user_items_user_idx on public.user_items(user_id);

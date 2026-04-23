@@ -1,4 +1,26 @@
-import type { Rarity } from "./supabase/types";
+import type { Obtainment, Rarity } from "./supabase/types";
+
+export const OBTAINMENT_ORDER: Obtainment[] = [
+  "roll",
+  "craft",
+  "shop",
+  "battle_pass",
+  "quest",
+  "wheel",
+  "ugc",
+  "login",
+];
+
+export const OBTAINMENT_LABEL: Record<Obtainment, string> = {
+  roll: "Roll",
+  craft: "Craft",
+  shop: "Shop",
+  battle_pass: "Battle Pass",
+  quest: "Quest",
+  wheel: "Wheel",
+  ugc: "UGC",
+  login: "Login",
+};
 
 export const RARITY_ORDER: Rarity[] = [
   "common",

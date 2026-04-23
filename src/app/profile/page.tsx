@@ -12,7 +12,7 @@ export default async function ProfilePage() {
 
   const [
     { data: profile },
-    { count: totalAuras },
+    { data: allAuras },
     { count: totalAchievements },
     { count: totalItems },
     { data: ownedAuras },
@@ -20,27 +20,41 @@ export default async function ProfilePage() {
     { count: ownedItemsCount },
   ] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", user.id).single(),
-    supabase.from("auras").select("*", { count: "exact", head: true }),
+    supabase.from("auras").select("rarity, event_name"),
     supabase.from("achievements").select("*", { count: "exact", head: true }),
     supabase.from("items").select("*", { count: "exact", head: true }),
-    supabase.from("user_auras").select("aura_id, count, auras(rarity)"),
+    supabase.from("user_auras").select("aura_id, count, auras(rarity, event_name)"),
     supabase.from("user_achievements").select("*", { count: "exact", head: true }),
     supabase.from("user_items").select("*", { count: "exact", head: true }),
   ]);
 
-  const auraTotal = totalAuras ?? 0;
+  const auraTotal = allAuras?.length ?? 0;
   const achTotal = totalAchievements ?? 0;
   const itemTotal = totalItems ?? 0;
   const auraOwned = ownedAuras?.length ?? 0;
 
+  // Catalog totals per rarity (for correct progress bars).
+  const catalogByRarity = new Map<Rarity, number>();
+  let normalTotal = 0, eventTotal = 0;
+  for (const a of allAuras ?? []) {
+    catalogByRarity.set(a.rarity, (catalogByRarity.get(a.rarity) ?? 0) + 1);
+    if (a.event_name) eventTotal++; else normalTotal++;
+  }
+
   const byRarity = new Map<Rarity, number>();
-  let totalRolls = 0;
+  let totalRolls = 0, normalOwned = 0, eventOwned = 0;
   for (const row of ownedAuras ?? []) {
     totalRolls += row.count;
-    const auraJoin = row.auras as { rarity: Rarity } | { rarity: Rarity }[] | null;
-    const rarity = Array.isArray(auraJoin) ? auraJoin[0]?.rarity : auraJoin?.rarity;
-    if (rarity) byRarity.set(rarity, (byRarity.get(rarity) ?? 0) + 1);
+    const auraJoin = row.auras as { rarity: Rarity; event_name: string | null } | { rarity: Rarity; event_name: string | null }[] | null;
+    const joined = Array.isArray(auraJoin) ? auraJoin[0] : auraJoin;
+    if (!joined) continue;
+    byRarity.set(joined.rarity, (byRarity.get(joined.rarity) ?? 0) + 1);
+    if (joined.event_name) eventOwned++; else normalOwned++;
   }
+
+  const pct = (o: number, t: number) => (t > 0 ? Math.round((o / t) * 100) : 0);
+  const normalPct = pct(normalOwned, normalTotal);
+  const eventPct = pct(eventOwned, eventTotal);
 
   const overallPct = auraTotal + achTotal + itemTotal > 0
     ? Math.round(((auraOwned + (unlockedAch ?? 0) + (ownedItemsCount ?? 0)) / (auraTotal + achTotal + itemTotal)) * 100)
@@ -131,18 +145,42 @@ export default async function ProfilePage() {
         />
       </div>
 
-      {/* Rarity breakdown */}
-      <div className="card p-6 space-y-4">
+      {/* Aura collection breakdown */}
+      <div className="card p-6 space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Collection by rarity</h2>
+          <h2 className="text-lg font-semibold">Aura collection</h2>
           <Link href="/auras" className="text-xs text-[var(--accent)] hover:underline">
             View all →
           </Link>
         </div>
-        <div className="space-y-3">
+
+        {/* Normal vs Event split */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <SplitProgress
+            label="Normal"
+            owned={normalOwned}
+            total={normalTotal}
+            pct={normalPct}
+            gradient="from-purple-500 to-pink-400"
+          />
+          <SplitProgress
+            label="Event"
+            owned={eventOwned}
+            total={eventTotal}
+            pct={eventPct}
+            gradient="from-amber-400 to-rose-500"
+          />
+        </div>
+
+        {/* By rarity */}
+        <div className="space-y-3 pt-2 border-t border-[var(--border)]">
+          <h3 className="text-xs uppercase tracking-wider text-[var(--foreground-muted)] pt-4">By rarity</h3>
           {RARITY_ORDER.map((r) => {
             const owned = byRarity.get(r) ?? 0;
+            const tierTotal = catalogByRarity.get(r) ?? 0;
+            if (tierTotal === 0) return null;
             const hasAny = owned > 0;
+            const tierPct = tierTotal > 0 ? Math.min(100, (owned / tierTotal) * 100) : 0;
             return (
               <div key={r} className="flex items-center gap-3">
                 <span className={`w-28 text-sm text-rarity-${r} font-medium`}>
@@ -151,13 +189,11 @@ export default async function ProfilePage() {
                 <div className="flex-1 h-2 rounded-full bg-[var(--surface)] overflow-hidden">
                   <div
                     className={`h-full rounded-full bg-rarity-${r} transition-all duration-500`}
-                    style={{
-                      width: `${auraOwned > 0 ? Math.min(100, (owned / auraOwned) * 100) : 0}%`,
-                    }}
+                    style={{ width: `${tierPct}%` }}
                   />
                 </div>
-                <span className={`text-sm font-mono tabular-nums w-12 text-right ${hasAny ? "text-[var(--foreground)]" : "text-[var(--foreground-faint)]"}`}>
-                  {owned}
+                <span className={`text-sm font-mono tabular-nums w-16 text-right ${hasAny ? "text-[var(--foreground)]" : "text-[var(--foreground-faint)]"}`}>
+                  {owned} / {tierTotal}
                 </span>
               </div>
             );
@@ -165,6 +201,38 @@ export default async function ProfilePage() {
         </div>
       </div>
     </section>
+  );
+}
+
+function SplitProgress({
+  label,
+  owned,
+  total,
+  pct,
+  gradient,
+}: {
+  label: string;
+  owned: number;
+  total: number;
+  pct: number;
+  gradient: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-[var(--foreground-muted)] font-medium">{label}</span>
+        <span className="font-mono text-[var(--foreground)]">
+          {owned} / {total}
+          <span className="text-[var(--foreground-muted)] ml-2">({pct}%)</span>
+        </span>
+      </div>
+      <div className="h-2 rounded-full bg-[var(--surface)] overflow-hidden">
+        <div
+          className={`h-full rounded-full bg-gradient-to-r ${gradient} transition-all duration-500`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
   );
 }
 

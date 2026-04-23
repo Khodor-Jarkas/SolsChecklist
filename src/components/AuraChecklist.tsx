@@ -2,8 +2,15 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { RARITY_LABEL, RARITY_ORDER, RARITY_CLASS, formatOdds } from "@/lib/rarity";
-import type { Database, Rarity } from "@/lib/supabase/types";
+import {
+  RARITY_LABEL,
+  RARITY_ORDER,
+  RARITY_CLASS,
+  OBTAINMENT_LABEL,
+  OBTAINMENT_ORDER,
+  formatOdds,
+} from "@/lib/rarity";
+import type { Database, Obtainment, Rarity } from "@/lib/supabase/types";
 
 type Aura = Database["public"]["Tables"]["auras"]["Row"];
 type OwnedState = Record<number, { count: number; first_obtained_at: string }>;
@@ -52,6 +59,7 @@ export function AuraChecklist({
   const [rarity, setRarity] = useState<Rarity | "all">("all");
   const [biome, setBiome] = useState<string>("all");
   const [eventName, setEventName] = useState<string>("all");
+  const [obtainment, setObtainment] = useState<Obtainment | "all">("all");
   const [filter, setFilter] = useState<Filter>("all");
   const [sort, setSort] = useState<Sort>("odds");
   const [view, setView] = useState<View>("rarity");
@@ -79,13 +87,14 @@ export function AuraChecklist({
       if (rarity !== "all" && a.rarity !== rarity) return false;
       if (biome !== "all" && a.biome !== biome) return false;
       if (eventName !== "all" && a.event_name !== eventName) return false;
+      if (obtainment !== "all" && a.obtainment !== obtainment) return false;
       const has = Boolean(owned[a.id]);
       if (filter === "owned" && !has) return false;
       if (filter === "missing" && has) return false;
       if (q && !a.name.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [auras, owned, rarity, biome, eventName, filter, query, view]);
+  }, [auras, owned, rarity, biome, eventName, obtainment, filter, query, view]);
 
   const sorter = useMemo(
     () => (a: Aura, b: Aura) => {
@@ -131,9 +140,21 @@ export function AuraChecklist({
   }, [filtered, sorter]);
 
   const stats = useMemo(() => {
-    const ownedCount = Object.keys(owned).length;
-    const pct = auras.length > 0 ? Math.round((ownedCount / auras.length) * 100) : 0;
-    return { ownedCount, total: auras.length, pct };
+    let normalTotal = 0, normalOwned = 0, eventTotal = 0, eventOwned = 0;
+    for (const a of auras) {
+      const isEvent = Boolean(a.event_name);
+      if (isEvent) eventTotal++; else normalTotal++;
+      if (owned[a.id]) {
+        if (isEvent) eventOwned++; else normalOwned++;
+      }
+    }
+    const pct = (o: number, t: number) => (t > 0 ? Math.round((o / t) * 100) : 0);
+    return {
+      normalOwned, normalTotal, normalPct: pct(normalOwned, normalTotal),
+      eventOwned, eventTotal, eventPct: pct(eventOwned, eventTotal),
+      totalOwned: normalOwned + eventOwned,
+      total: normalTotal + eventTotal,
+    };
   }, [owned, auras]);
 
   async function toggle(aura: Aura) {
@@ -219,21 +240,22 @@ export function AuraChecklist({
 
   return (
     <div className="space-y-5">
-      {/* Overall progress */}
-      <div className="card p-4 space-y-3">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-[var(--foreground-muted)]">Overall progress</span>
-          <span className="font-mono text-[var(--foreground)]">
-            {stats.ownedCount} / {stats.total}
-            <span className="text-[var(--foreground-muted)] ml-2">({stats.pct}%)</span>
-          </span>
-        </div>
-        <div className="h-2 rounded-full bg-[var(--surface)] overflow-hidden">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-400 transition-all duration-500"
-            style={{ width: `${stats.pct}%` }}
-          />
-        </div>
+      {/* Split progress: normal vs event */}
+      <div className="card p-4 space-y-4">
+        <ProgressBar
+          label="Normal auras"
+          owned={stats.normalOwned}
+          total={stats.normalTotal}
+          pct={stats.normalPct}
+          gradient="from-purple-500 to-pink-400"
+        />
+        <ProgressBar
+          label="Event auras"
+          owned={stats.eventOwned}
+          total={stats.eventTotal}
+          pct={stats.eventPct}
+          gradient="from-amber-400 to-rose-500"
+        />
       </div>
 
       {/* View toggle */}
@@ -295,6 +317,17 @@ export function AuraChecklist({
             ))}
           </select>
         )}
+
+        <select
+          value={obtainment}
+          onChange={(e) => setObtainment(e.target.value as Obtainment | "all")}
+          className="input max-w-[11rem]"
+        >
+          <option value="all">All sources</option>
+          {OBTAINMENT_ORDER.map((o) => (
+            <option key={o} value={o}>{OBTAINMENT_LABEL[o]}</option>
+          ))}
+        </select>
 
         <select
           value={sort}
@@ -481,6 +514,12 @@ function AuraGrid({
                   )}
                 </div>
 
+                {a.obtainment && a.obtainment !== "roll" && (
+                  <div className="mt-2">
+                    <ObtainmentBadge method={a.obtainment} />
+                  </div>
+                )}
+
                 {a.description && (
                   <p className="text-xs text-[var(--foreground-muted)] mt-2 line-clamp-2 leading-relaxed">
                     {a.description}
@@ -601,6 +640,59 @@ function AuraThumb({
       onMouseLeave={() => setHovered(false)}
       className={classes}
     />
+  );
+}
+
+function ProgressBar({
+  label,
+  owned,
+  total,
+  pct,
+  gradient,
+}: {
+  label: string;
+  owned: number;
+  total: number;
+  pct: number;
+  gradient: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-[var(--foreground-muted)]">{label}</span>
+        <span className="font-mono text-[var(--foreground)]">
+          {owned} / {total}
+          <span className="text-[var(--foreground-muted)] ml-2">({pct}%)</span>
+        </span>
+      </div>
+      <div className="h-2 rounded-full bg-[var(--surface)] overflow-hidden">
+        <div
+          className={`h-full rounded-full bg-gradient-to-r ${gradient} transition-all duration-500`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+const OBTAINMENT_STYLE: Record<Obtainment, string> = {
+  roll:        "bg-purple-500/10 text-purple-300 border-purple-500/30",
+  craft:       "bg-sky-500/10 text-sky-300 border-sky-500/30",
+  shop:        "bg-emerald-500/10 text-emerald-300 border-emerald-500/30",
+  battle_pass: "bg-amber-500/10 text-amber-300 border-amber-500/30",
+  quest:       "bg-pink-500/10 text-pink-300 border-pink-500/30",
+  wheel:       "bg-rose-500/10 text-rose-300 border-rose-500/30",
+  ugc:         "bg-indigo-500/10 text-indigo-300 border-indigo-500/30",
+  login:       "bg-teal-500/10 text-teal-300 border-teal-500/30",
+};
+
+function ObtainmentBadge({ method }: { method: Obtainment }) {
+  return (
+    <span
+      className={`inline-flex items-center text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full border ${OBTAINMENT_STYLE[method]}`}
+    >
+      {OBTAINMENT_LABEL[method]}
+    </span>
   );
 }
 

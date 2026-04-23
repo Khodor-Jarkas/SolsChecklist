@@ -1,3 +1,13 @@
+export type Obtainment =
+  | "roll"         // standard RNG roll
+  | "craft"        // crafted from items / recipe
+  | "shop"         // purchased in-game (Lime's, Mari's, token shops, etc.)
+  | "battle_pass"  // season/battle pass reward
+  | "quest"        // quest or questline completion
+  | "wheel"        // roulette / wheel spin
+  | "ugc"          // UGC redemption
+  | "login";       // login reward
+
 export type Rarity =
   | "common"         // 1 – 999
   | "epic"           // 1,000 – 9,999
@@ -48,6 +58,7 @@ export type Database = {
           biome: string | null;
           event_name: string | null;
           event_year: number | null;
+          obtainment: Obtainment | null;
           image_url: string | null;
           description: string | null;
         };
@@ -59,6 +70,7 @@ export type Database = {
           biome?: string | null;
           event_name?: string | null;
           event_year?: number | null;
+          obtainment?: Obtainment | null;
           image_url?: string | null;
           description?: string | null;
         };
@@ -70,6 +82,7 @@ export type Database = {
           biome?: string | null;
           event_name?: string | null;
           event_year?: number | null;
+          obtainment?: Obtainment | null;
           image_url?: string | null;
           description?: string | null;
         };
