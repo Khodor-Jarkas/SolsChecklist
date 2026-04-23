@@ -155,20 +155,21 @@ create policy "catalog items readable"          on public.items         for sele
 create policy "profiles readable"       on public.profiles for select using (true);
 create policy "profiles self update"    on public.profiles for update using (auth.uid() = id);
 
--- Private progress: only the owner can see and modify their rows.
-create policy "user_auras self select"  on public.user_auras        for select using (auth.uid() = user_id);
-create policy "user_auras self insert"  on public.user_auras        for insert with check (auth.uid() = user_id);
-create policy "user_auras self update"  on public.user_auras        for update using (auth.uid() = user_id);
-create policy "user_auras self delete"  on public.user_auras        for delete using (auth.uid() = user_id);
+-- User progress: publicly readable (for shared /u/<username> profiles),
+-- but only the owner can INSERT/UPDATE/DELETE.
+create policy "user_auras public select"    on public.user_auras        for select using (true);
+create policy "user_auras self insert"      on public.user_auras        for insert with check (auth.uid() = user_id);
+create policy "user_auras self update"      on public.user_auras        for update using (auth.uid() = user_id);
+create policy "user_auras self delete"      on public.user_auras        for delete using (auth.uid() = user_id);
 
-create policy "user_ach self select"    on public.user_achievements for select using (auth.uid() = user_id);
-create policy "user_ach self insert"    on public.user_achievements for insert with check (auth.uid() = user_id);
-create policy "user_ach self delete"    on public.user_achievements for delete using (auth.uid() = user_id);
+create policy "user_achievements public select" on public.user_achievements for select using (true);
+create policy "user_ach self insert"         on public.user_achievements for insert with check (auth.uid() = user_id);
+create policy "user_ach self delete"         on public.user_achievements for delete using (auth.uid() = user_id);
 
-create policy "user_items self select"  on public.user_items        for select using (auth.uid() = user_id);
-create policy "user_items self insert"  on public.user_items        for insert with check (auth.uid() = user_id);
-create policy "user_items self update"  on public.user_items        for update using (auth.uid() = user_id);
-create policy "user_items self delete"  on public.user_items        for delete using (auth.uid() = user_id);
+create policy "user_items public select"     on public.user_items        for select using (true);
+create policy "user_items self insert"       on public.user_items        for insert with check (auth.uid() = user_id);
+create policy "user_items self update"       on public.user_items        for update using (auth.uid() = user_id);
+create policy "user_items self delete"       on public.user_items        for delete using (auth.uid() = user_id);
 
 -- ============================================================================
 -- 6. Helpful indexes

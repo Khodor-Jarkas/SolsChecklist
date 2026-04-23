@@ -49,9 +49,13 @@ export default async function RootLayout({
                   <NavLink href="/crafting">Crafting</NavLink>
                   <NavLink href="/profile">Profile</NavLink>
                   {username && (
-                    <span className="hidden sm:inline-flex items-center ml-2 px-2 py-1 rounded-md bg-[var(--card)] border border-[var(--border)] text-xs text-[var(--foreground)]/70">
+                    <Link
+                      href={`/u/${encodeURIComponent(username)}`}
+                      className="hidden sm:inline-flex items-center ml-2 px-2 py-1 rounded-md bg-[var(--card)] border border-[var(--border)] text-xs text-[var(--foreground)]/70 hover:text-[var(--foreground)] hover:border-[var(--border-strong)] transition-colors"
+                      title="View your public profile"
+                    >
                       @{username}
-                    </span>
+                    </Link>
                   )}
                   <SignOutButton />
                 </>
