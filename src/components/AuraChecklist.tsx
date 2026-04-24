@@ -85,7 +85,9 @@ export function AuraChecklist({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return auras.filter((a) => {
+      // Normal view: hide every event aura. Event view: hide every non-event aura.
       if (view === "events" && !a.event_name) return false;
+      if (view === "rarity" && a.event_name) return false;
       if (rarity !== "all" && a.rarity !== rarity) return false;
       if (biome !== "all" && a.biome !== biome) return false;
       if (eventName !== "all" && a.event_name !== eventName) return false;
@@ -245,31 +247,34 @@ export function AuraChecklist({
 
   return (
     <div className="space-y-5">
-      {/* Split progress: normal vs event */}
+      {/* Progress for the current view only */}
       {!readOnly && (
-        <div className="card p-4 space-y-4">
-          <ProgressBar
-            label="Normal auras"
-            owned={stats.normalOwned}
-            total={stats.normalTotal}
-            pct={stats.normalPct}
-            gradient="from-purple-500 to-pink-400"
-          />
-          <ProgressBar
-            label="Event auras"
-            owned={stats.eventOwned}
-            total={stats.eventTotal}
-            pct={stats.eventPct}
-            gradient="from-amber-400 to-rose-500"
-          />
+        <div className="card p-4">
+          {view === "rarity" ? (
+            <ProgressBar
+              label="Normal auras"
+              owned={stats.normalOwned}
+              total={stats.normalTotal}
+              pct={stats.normalPct}
+              gradient="from-purple-500 to-pink-400"
+            />
+          ) : (
+            <ProgressBar
+              label="Event auras"
+              owned={stats.eventOwned}
+              total={stats.eventTotal}
+              pct={stats.eventPct}
+              gradient="from-amber-400 to-rose-500"
+            />
+          )}
         </div>
       )}
 
       {/* View toggle */}
       <div className="card p-1 inline-flex gap-1">
         {([
-          { key: "rarity" as const, label: "By rarity" },
-          { key: "events" as const, label: "By event" },
+          { key: "rarity" as const, label: "Show Normal" },
+          { key: "events" as const, label: "Show Event" },
         ]).map(({ key, label }) => (
           <button
             key={key}
@@ -313,7 +318,7 @@ export function AuraChecklist({
           </select>
         )}
 
-        {eventNames.length > 1 && (
+        {view === "events" && eventNames.length > 1 && (
           <select
             value={eventName}
             onChange={(e) => setEventName(e.target.value)}
