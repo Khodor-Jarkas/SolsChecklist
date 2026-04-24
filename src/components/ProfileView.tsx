@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { RARITY_CLASS, RARITY_LABEL, RARITY_ORDER, formatOdds } from "@/lib/rarity";
 import type { Rarity } from "@/lib/supabase/types";
+import { PrivacyToggle } from "./PrivacyToggle";
 
 type Profile = {
   id: string;
   username: string;
   avatar_url: string | null;
+  is_private: boolean;
   created_at: string;
 };
 
@@ -68,6 +70,9 @@ export function ProfileView({
   data: ProfileData;
   isOwner: boolean;
 }) {
+  if (profile.is_private && !isOwner) {
+    return <PrivateProfileStub profile={profile} />;
+  }
   const { stats, ownedAuras, ownedAchievements } = data;
   const initial = (profile.username ?? "U").charAt(0).toUpperCase();
   const totalOwned = stats.auraOwned + stats.achOwned + stats.itemOwned;
@@ -95,12 +100,28 @@ export function ProfileView({
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
-            {profile.username}
-          </h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
+              {profile.username}
+            </h1>
+            {profile.is_private && !isOwner && (
+              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border border-[var(--border)] bg-[var(--card)] text-[var(--foreground-muted)]">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3">
+                  <rect x="3" y="11" width="18" height="11" rx="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                Private
+              </span>
+            )}
+          </div>
           <p className="text-sm text-[var(--foreground-muted)] mt-1">
             Member since {new Date(profile.created_at).toLocaleDateString()}
           </p>
+          {isOwner && (
+            <div className="mt-3">
+              <PrivacyToggle userId={profile.id} initialPrivate={profile.is_private} />
+            </div>
+          )}
         </div>
         <ProgressRing pct={overallPct} />
       </header>
@@ -304,6 +325,59 @@ export function ProfileView({
           </Link>
         </div>
       )}
+    </section>
+  );
+}
+
+function PrivateProfileStub({ profile }: { profile: Profile }) {
+  const initial = profile.username.charAt(0).toUpperCase();
+  return (
+    <section className="space-y-6">
+      <header className="card p-6 md:p-8 flex items-center gap-6 flex-wrap">
+        <div className="relative">
+          {profile.avatar_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={profile.avatar_url}
+              alt={profile.username}
+              className="h-20 w-20 rounded-full object-cover border-2 border-[var(--border-strong)]"
+            />
+          ) : (
+            <div className="h-20 w-20 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-3xl font-semibold text-white">
+              {initial}
+            </div>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
+              {profile.username}
+            </h1>
+            <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border border-[var(--border)] bg-[var(--card)] text-[var(--foreground-muted)]">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3">
+                <rect x="3" y="11" width="18" height="11" rx="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              Private
+            </span>
+          </div>
+          <p className="text-sm text-[var(--foreground-muted)] mt-1">
+            Member since {new Date(profile.created_at).toLocaleDateString()}
+          </p>
+        </div>
+      </header>
+      <div className="card p-10 text-center space-y-3">
+        <div className="mx-auto h-12 w-12 rounded-full bg-[var(--surface)] flex items-center justify-center text-[var(--foreground-muted)]">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-6 w-6">
+            <rect x="3" y="11" width="18" height="11" rx="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+        </div>
+        <p className="text-[var(--foreground)] font-medium">This profile is private.</p>
+        <p className="text-sm text-[var(--foreground-muted)]">
+          @{profile.username} has chosen not to share their collection.
+        </p>
+      </div>
     </section>
   );
 }

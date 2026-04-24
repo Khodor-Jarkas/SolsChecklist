@@ -50,9 +50,11 @@ const COUNTER_RARITIES = new Set<Rarity>([
 export function AuraChecklist({
   auras,
   initialOwned,
+  readOnly = false,
 }: {
   auras: Aura[];
   initialOwned: OwnedState;
+  readOnly?: boolean;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [owned, setOwned] = useState<OwnedState>(initialOwned);
@@ -158,6 +160,7 @@ export function AuraChecklist({
   }, [owned, auras]);
 
   async function toggle(aura: Aura) {
+    if (readOnly) return;
     const has = Boolean(owned[aura.id]);
     const prev = owned;
     const next: OwnedState = { ...owned };
@@ -186,6 +189,7 @@ export function AuraChecklist({
   }
 
   async function incrementCount(aura: Aura, delta: number) {
+    if (readOnly) return;
     const current = owned[aura.id];
     if (!current) return;
     const newCount = Math.max(1, current.count + delta);
@@ -211,6 +215,7 @@ export function AuraChecklist({
   }
 
   async function bulkMark(sectionAuras: Aura[], tier: Rarity) {
+    if (readOnly) return;
     const missing = sectionAuras.filter((a) => !owned[a.id]);
     if (missing.length === 0) return;
 
@@ -241,22 +246,24 @@ export function AuraChecklist({
   return (
     <div className="space-y-5">
       {/* Split progress: normal vs event */}
-      <div className="card p-4 space-y-4">
-        <ProgressBar
-          label="Normal auras"
-          owned={stats.normalOwned}
-          total={stats.normalTotal}
-          pct={stats.normalPct}
-          gradient="from-purple-500 to-pink-400"
-        />
-        <ProgressBar
-          label="Event auras"
-          owned={stats.eventOwned}
-          total={stats.eventTotal}
-          pct={stats.eventPct}
-          gradient="from-amber-400 to-rose-500"
-        />
-      </div>
+      {!readOnly && (
+        <div className="card p-4 space-y-4">
+          <ProgressBar
+            label="Normal auras"
+            owned={stats.normalOwned}
+            total={stats.normalTotal}
+            pct={stats.normalPct}
+            gradient="from-purple-500 to-pink-400"
+          />
+          <ProgressBar
+            label="Event auras"
+            owned={stats.eventOwned}
+            total={stats.eventTotal}
+            pct={stats.eventPct}
+            gradient="from-amber-400 to-rose-500"
+          />
+        </div>
+      )}
 
       {/* View toggle */}
       <div className="card p-1 inline-flex gap-1">
@@ -371,17 +378,19 @@ export function AuraChecklist({
                   <span className="text-xs font-mono text-[var(--foreground-muted)]">
                     {ownedInSection} / {list.length}
                   </span>
-                  <button
-                    onClick={() => bulkMark(list, r)}
-                    disabled={allOwned || bulkPending === r}
-                    className="btn btn-sm btn-ghost ml-auto"
-                  >
-                    {allOwned
-                      ? "All marked"
-                      : bulkPending === r
-                        ? "Marking…"
-                        : `Mark all ${RARITY_LABEL[r]}`}
-                  </button>
+                  {!readOnly && (
+                    <button
+                      onClick={() => bulkMark(list, r)}
+                      disabled={allOwned || bulkPending === r}
+                      className="btn btn-sm btn-ghost ml-auto"
+                    >
+                      {allOwned
+                        ? "All marked"
+                        : bulkPending === r
+                          ? "Marking…"
+                          : `Mark all ${RARITY_LABEL[r]}`}
+                    </button>
+                  )}
                 </div>
                 <AuraGrid
                   list={list}
@@ -390,6 +399,7 @@ export function AuraChecklist({
                   toggle={toggle}
                   incrementCount={incrementCount}
                   showRarity={false}
+                  readOnly={readOnly}
                 />
               </section>
             );
@@ -428,6 +438,7 @@ export function AuraChecklist({
                           toggle={toggle}
                           incrementCount={incrementCount}
                           showRarity
+                          readOnly={readOnly}
                         />
                       </div>
                     );
@@ -449,6 +460,7 @@ function AuraGrid({
   toggle,
   incrementCount,
   showRarity = false,
+  readOnly = false,
 }: {
   list: Aura[];
   owned: OwnedState;
@@ -456,6 +468,7 @@ function AuraGrid({
   toggle: (a: Aura) => void;
   incrementCount: (a: Aura, d: number) => void;
   showRarity?: boolean;
+  readOnly?: boolean;
 }) {
   return (
     <ul className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
@@ -473,18 +486,20 @@ function AuraGrid({
             <div className={`absolute left-0 top-0 bottom-0 w-1 bg-rarity-${r}`} />
 
             <div className="flex gap-3 pl-2">
-              <button
-                onClick={() => toggle(a)}
-                aria-label={has ? "Mark as missing" : "Mark as owned"}
-                data-checked={has}
-                className={`checkbox mt-0.5 ${justToggled === a.id ? "animate-pop" : ""}`}
-              >
-                {has && (
-                  <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="3">
-                    <path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                )}
-              </button>
+              {!readOnly && (
+                <button
+                  onClick={() => toggle(a)}
+                  aria-label={has ? "Mark as missing" : "Mark as owned"}
+                  data-checked={has}
+                  className={`checkbox mt-0.5 ${justToggled === a.id ? "animate-pop" : ""}`}
+                >
+                  {has && (
+                    <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="3">
+                      <path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </button>
+              )}
 
               <AuraThumb aura={a} rarity={r} owned={has} />
 

@@ -27,9 +27,11 @@ type Filter = "all" | "unlocked" | "locked";
 export function AchievementsChecklist({
   achievements,
   initialUnlocked,
+  readOnly = false,
 }: {
   achievements: Achievement[];
   initialUnlocked: UnlockedState;
+  readOnly?: boolean;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [unlocked, setUnlocked] = useState<UnlockedState>(initialUnlocked);
@@ -70,6 +72,7 @@ export function AchievementsChecklist({
   }, [unlocked, achievements]);
 
   async function toggle(achievement: Achievement) {
+    if (readOnly) return;
     const has = Boolean(unlocked[achievement.id]);
     const prev = unlocked;
     const next: UnlockedState = { ...unlocked };
@@ -98,21 +101,23 @@ export function AchievementsChecklist({
   return (
     <div className="space-y-5">
       {/* Progress */}
-      <div className="card p-4 space-y-3">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-[var(--foreground-muted)]">Overall progress</span>
-          <span className="font-mono">
-            {stats.owned} / {stats.total}
-            <span className="text-[var(--foreground-muted)] ml-2">({stats.pct}%)</span>
-          </span>
+      {!readOnly && (
+        <div className="card p-4 space-y-3">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-[var(--foreground-muted)]">Overall progress</span>
+            <span className="font-mono">
+              {stats.owned} / {stats.total}
+              <span className="text-[var(--foreground-muted)] ml-2">({stats.pct}%)</span>
+            </span>
+          </div>
+          <div className="h-2 rounded-full bg-[var(--surface)] overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-sky-400 to-indigo-500 transition-all duration-500"
+              style={{ width: `${stats.pct}%` }}
+            />
+          </div>
         </div>
-        <div className="h-2 rounded-full bg-[var(--surface)] overflow-hidden">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-sky-400 to-indigo-500 transition-all duration-500"
-            style={{ width: `${stats.pct}%` }}
-          />
-        </div>
-      </div>
+      )}
 
       {/* Filters */}
       <div className="card p-4 flex flex-wrap gap-2.5 items-center">
@@ -164,6 +169,7 @@ export function AchievementsChecklist({
                       unlockedAt={unlocked[a.id]}
                       pop={justUnlocked === a.id}
                       onToggle={toggle}
+                      readOnly={readOnly}
                     />
                   ))}
                 </ul>
@@ -181,28 +187,32 @@ function AchievementCard({
   unlockedAt,
   pop,
   onToggle,
+  readOnly = false,
 }: {
   achievement: Achievement;
   unlockedAt?: string;
   pop: boolean;
   onToggle: (a: Achievement) => void;
+  readOnly?: boolean;
 }) {
   const has = Boolean(unlockedAt);
   return (
     <li className={`card p-4 ${has ? "card-owned" : ""}`}>
       <div className="flex gap-3">
-        <button
-          onClick={() => onToggle(a)}
-          aria-label={has ? "Lock" : "Unlock"}
-          data-checked={has}
-          className={`checkbox mt-0.5 ${pop ? "animate-pop" : ""}`}
-        >
-          {has && (
-            <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="3">
-              <path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          )}
-        </button>
+        {!readOnly && (
+          <button
+            onClick={() => onToggle(a)}
+            aria-label={has ? "Lock" : "Unlock"}
+            data-checked={has}
+            className={`checkbox mt-0.5 ${pop ? "animate-pop" : ""}`}
+          >
+            {has && (
+              <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="3">
+                <path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </button>
+        )}
 
         <AchievementIcon imageUrl={a.image_url} name={a.name} />
 

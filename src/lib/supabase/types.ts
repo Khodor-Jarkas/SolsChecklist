@@ -34,17 +34,20 @@ export type Database = {
           id: string;
           username: string;
           avatar_url: string | null;
+          is_private: boolean;
           created_at: Timestamp;
         };
         Insert: {
           id: string;
           username: string;
           avatar_url?: string | null;
+          is_private?: boolean;
           created_at?: Timestamp;
         };
         Update: {
           username?: string;
           avatar_url?: string | null;
+          is_private?: boolean;
         };
         Relationships: [];
       };
