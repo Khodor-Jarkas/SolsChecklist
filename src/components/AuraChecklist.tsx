@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   RARITY_LABEL,
@@ -623,49 +623,45 @@ function AuraThumb({
   rarity: Rarity;
   owned: boolean;
 }) {
+  const isLimbo = aura.biome === "The Limbo";
   const size = "h-20 w-20";
-  const ring = owned
+  const ringByTier = owned
     ? `bg-rarity-${rarity}/15 border-rarity-${rarity}/60`
     : "bg-[var(--surface)] border-[var(--border)]";
-  const classes = `${size} shrink-0 rounded-lg object-contain border-2 ${ring} p-1`;
+  // Limbo auras get a distinctive purple-violet ring that overrides the tier
+  // colour so they stand out at a glance.
+  const ring = isLimbo
+    ? "bg-[#14091f] border-violet-400 shadow-[0_0_0_1px_rgba(139,92,246,0.35),0_0_14px_rgba(139,92,246,0.35)]"
+    : ringByTier;
+  const classes = `${size} shrink-0 rounded-lg object-contain border-2 ${ring} p-1 relative`;
 
+  const imgRef = useRef<HTMLImageElement | null>(null);
   const [hovered, setHovered] = useState(false);
   const [staticSrc, setStaticSrc] = useState<string | null>(
     aura.image_url ? (frameCache.get(aura.image_url) ?? null) : null,
   );
 
-  // Capture the first frame of the GIF once, so it can render frozen by default.
-  // Requires CORS (Fandom's static.wikia.nocookie.net sends Access-Control-Allow-Origin: *);
-  // if the canvas gets tainted for any reason we silently fall back to the live GIF.
-  useEffect(() => {
+  // Capture the first frame only AFTER the browser's native lazy-load
+  // actually fetches the image — no preemptive `new Image()` spam on mount.
+  function handleLoaded() {
     const url = aura.image_url;
     if (!url || frameCache.has(url)) return;
-
-    let cancelled = false;
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.decoding = "async";
-    img.onload = () => {
-      if (cancelled) return;
-      try {
-        const canvas = document.createElement("canvas");
-        canvas.width = img.naturalWidth || 150;
-        canvas.height = img.naturalHeight || 150;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-        ctx.drawImage(img, 0, 0);
-        const dataUrl = canvas.toDataURL("image/png");
-        frameCache.set(url, dataUrl);
-        setStaticSrc(dataUrl);
-      } catch {
-        // Tainted canvas — stays on live GIF.
-      }
-    };
-    img.src = url;
-    return () => {
-      cancelled = true;
-    };
-  }, [aura.image_url]);
+    const el = imgRef.current;
+    if (!el) return;
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = el.naturalWidth || 150;
+      canvas.height = el.naturalHeight || 150;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.drawImage(el, 0, 0);
+      const dataUrl = canvas.toDataURL("image/png");
+      frameCache.set(url, dataUrl);
+      setStaticSrc(dataUrl);
+    } catch {
+      // Tainted canvas — stays on live GIF.
+    }
+  }
 
   if (!aura.image_url) {
     return (
@@ -677,20 +673,34 @@ function AuraThumb({
     );
   }
 
-  // Show the live GIF while hovering, or while the first-frame capture is
+  // Show the live GIF while hovering or while the first-frame capture is
   // still pending. Freeze to the captured PNG otherwise.
   const shownSrc = hovered || !staticSrc ? aura.image_url : staticSrc;
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={shownSrc}
-      alt={aura.name}
-      loading="lazy"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className={classes}
-    />
+    <div className="relative shrink-0">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        ref={imgRef}
+        src={shownSrc}
+        alt={aura.name}
+        loading="lazy"
+        decoding="async"
+        crossOrigin="anonymous"
+        onLoad={handleLoaded}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        className={classes}
+      />
+      {isLimbo && (
+        <span
+          className="absolute -top-1 -right-1 text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded-sm bg-violet-500 text-white shadow"
+          title="Found in The Limbo"
+        >
+          Limbo
+        </span>
+      )}
+    </div>
   );
 }
 
