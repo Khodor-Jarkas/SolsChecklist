@@ -18,10 +18,10 @@ export default async function HomePage() {
           Community tracker for Sol&apos;s RNG
         </div>
         <h1 className="text-4xl md:text-6xl font-semibold tracking-tight leading-[1.05]">
-          Every aura, achievement,
+          Every aura and achievement
           <br />
           <span className="bg-gradient-to-br from-purple-400 via-pink-400 to-orange-300 bg-clip-text text-transparent">
-            and item in one place.
+            in one place.
           </span>
         </h1>
         <p className="text-base md:text-lg text-[var(--foreground-muted)] max-w-xl mx-auto">
@@ -52,7 +52,7 @@ export default async function HomePage() {
         />
         <FeatureCard
           title="Achievements"
-          description="Roll milestones, biome firsts, crafting goals. Grouped by category so nothing slips through."
+          description="Roll milestones, biome firsts, event badges. Grouped by category so nothing slips through."
           accent="blue"
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
@@ -66,12 +66,15 @@ export default async function HomePage() {
           }
         />
         <FeatureCard
-          title="Crafting log"
-          description="Potions, gear, materials. Know what you've crafted and what you still need."
+          title="Public profiles"
+          description="Share your collection with a clean /u/username link. Browse friends' progress and compare rare rolls."
           accent="pink"
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
             </svg>
           }
         />

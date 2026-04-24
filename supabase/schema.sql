@@ -39,7 +39,9 @@ create table public.auras (
 create table public.achievements (
   id            bigserial primary key,
   name          text not null unique,
-  description   text not null,
+  description   text,           -- flavor text
+  requirement   text,           -- what unlocks it (e.g. "Roll 100 times")
+  reward        text,           -- what you get (e.g. "x1 Void Coin")
   category      text,
   image_url     text
 );

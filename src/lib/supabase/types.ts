@@ -92,19 +92,25 @@ export type Database = {
         Row: {
           id: number;
           name: string;
-          description: string;
+          description: string | null;
+          requirement: string | null;
+          reward: string | null;
           category: string | null;
           image_url: string | null;
         };
         Insert: {
           name: string;
-          description: string;
+          description?: string | null;
+          requirement?: string | null;
+          reward?: string | null;
           category?: string | null;
           image_url?: string | null;
         };
         Update: {
           name?: string;
-          description?: string;
+          description?: string | null;
+          requirement?: string | null;
+          reward?: string | null;
           category?: string | null;
           image_url?: string | null;
         };
@@ -172,7 +178,14 @@ export type Database = {
         Update: {
           unlocked_at?: Timestamp;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "user_achievements_achievement_id_fkey";
+            columns: ["achievement_id"];
+            referencedRelation: "achievements";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       user_items: {
         Row: {

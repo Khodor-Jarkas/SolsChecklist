@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { RARITY_LABEL, RARITY_ORDER } from "@/lib/rarity";
+import { RARITY_CLASS, RARITY_LABEL, RARITY_ORDER, formatOdds } from "@/lib/rarity";
 import type { Rarity } from "@/lib/supabase/types";
 
 type Profile = {
@@ -25,17 +25,50 @@ export type ProfileStats = {
   catalogByRarity: Map<Rarity, number>;
 };
 
+type OwnedAura = {
+  count: number;
+  first_obtained_at: string;
+  aura: {
+    id: number;
+    name: string;
+    rarity: Rarity;
+    rarity_odds: number | null;
+    image_url: string | null;
+    event_name: string | null;
+  };
+};
+
+type OwnedAchievement = {
+  unlocked_at: string;
+  achievement: {
+    id: number;
+    name: string;
+    description: string | null;
+    requirement: string | null;
+    reward: string | null;
+    category: string | null;
+    image_url: string | null;
+  };
+};
+
+export type ProfileData = {
+  stats: ProfileStats;
+  ownedAuras: OwnedAura[];
+  ownedAchievements: OwnedAchievement[];
+};
+
 const pct = (o: number, t: number) => (t > 0 ? Math.round((o / t) * 100) : 0);
 
 export function ProfileView({
   profile,
-  stats,
+  data,
   isOwner,
 }: {
   profile: Profile;
-  stats: ProfileStats;
+  data: ProfileData;
   isOwner: boolean;
 }) {
+  const { stats, ownedAuras, ownedAchievements } = data;
   const initial = (profile.username ?? "U").charAt(0).toUpperCase();
   const totalOwned = stats.auraOwned + stats.achOwned + stats.itemOwned;
   const totalCatalog = stats.auraTotal + stats.achTotal + stats.itemTotal;
@@ -62,19 +95,9 @@ export function ProfileView({
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
-              {profile.username}
-            </h1>
-            {isOwner && (
-              <Link
-                href={`/u/${encodeURIComponent(profile.username)}`}
-                className="text-xs text-[var(--accent)] hover:underline"
-              >
-                View public profile →
-              </Link>
-            )}
-          </div>
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
+            {profile.username}
+          </h1>
           <p className="text-sm text-[var(--foreground-muted)] mt-1">
             Member since {new Date(profile.created_at).toLocaleDateString()}
           </p>
@@ -83,7 +106,7 @@ export function ProfileView({
       </header>
 
       {/* Stat grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <StatCard
           label="Auras"
           value={stats.auraOwned}
@@ -108,18 +131,6 @@ export function ProfileView({
               <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
               <path d="M4 22h16" />
               <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-            </svg>
-          }
-        />
-        <StatCard
-          label="Items"
-          value={stats.itemOwned}
-          total={stats.itemTotal}
-          href={isOwner ? "/crafting" : undefined}
-          accent="pink"
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
             </svg>
           }
         />
@@ -191,7 +202,135 @@ export function ProfileView({
           })}
         </div>
       </div>
+
+      {/* Owned auras (compact grid, rarest first) */}
+      {ownedAuras.length > 0 && (
+        <CollapsibleList
+          title="Auras owned"
+          count={ownedAuras.length}
+          total={stats.auraTotal}
+        >
+          <ul className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-3">
+            {[...ownedAuras]
+              .sort((a, b) => (b.aura.rarity_odds ?? 0) - (a.aura.rarity_odds ?? 0))
+              .map((o) => {
+                const r = o.aura.rarity;
+                const rarityColor = RARITY_CLASS[r].split(" ")[0];
+                return (
+                  <li key={o.aura.id} className="group relative">
+                    <div
+                      className={`aspect-square rounded-lg bg-[var(--surface)] border-2 border-rarity-${r}/40 p-1 flex items-center justify-center overflow-hidden`}
+                    >
+                      {o.aura.image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={o.aura.image_url}
+                          alt={o.aura.name}
+                          loading="lazy"
+                          className="max-w-full max-h-full object-contain"
+                        />
+                      ) : (
+                        <span className={`text-lg font-semibold ${rarityColor}`}>
+                          {o.aura.name.replace(/[^A-Za-z★]/g, "").charAt(0).toUpperCase() || "?"}
+                        </span>
+                      )}
+                      {o.count > 1 && (
+                        <span className="absolute top-1 right-1 text-[10px] font-mono bg-black/60 backdrop-blur text-white px-1 rounded">
+                          ×{o.count}
+                        </span>
+                      )}
+                    </div>
+                    <p className={`mt-1 text-[11px] font-medium truncate text-center ${rarityColor}`}>
+                      {o.aura.name}
+                    </p>
+                    <p className="text-[10px] text-[var(--foreground-faint)] font-mono text-center">
+                      {formatOdds(o.aura.rarity_odds) || RARITY_LABEL[r]}
+                    </p>
+                  </li>
+                );
+              })}
+          </ul>
+        </CollapsibleList>
+      )}
+
+      {/* Unlocked achievements */}
+      {ownedAchievements.length > 0 && (
+        <CollapsibleList
+          title="Achievements unlocked"
+          count={ownedAchievements.length}
+          total={stats.achTotal}
+        >
+          <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {ownedAchievements
+              .slice()
+              .sort((a, b) => b.unlocked_at.localeCompare(a.unlocked_at))
+              .map((o) => (
+                <li key={o.achievement.id} className="card p-3 flex items-start gap-3">
+                  {o.achievement.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={o.achievement.image_url}
+                      alt={o.achievement.name}
+                      loading="lazy"
+                      className="h-10 w-10 shrink-0 rounded-md bg-[var(--surface)] p-0.5 object-contain border border-[var(--border)]"
+                    />
+                  ) : (
+                    <div className="h-10 w-10 shrink-0 rounded-md bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-sm text-[var(--foreground-muted)]">
+                      {o.achievement.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">{o.achievement.name}</p>
+                    {o.achievement.requirement && (
+                      <p className="text-xs text-[var(--foreground-muted)] line-clamp-1">
+                        {o.achievement.requirement}
+                      </p>
+                    )}
+                    <p className="text-[10px] text-[var(--foreground-faint)] mt-1">
+                      Unlocked {new Date(o.unlocked_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                </li>
+              ))}
+          </ul>
+        </CollapsibleList>
+      )}
+
+      {isOwner && ownedAuras.length === 0 && ownedAchievements.length === 0 && (
+        <div className="card p-8 text-center text-sm text-[var(--foreground-muted)] space-y-3">
+          <p>Nothing tracked yet.</p>
+          <Link href="/auras" className="btn btn-primary inline-flex">
+            Start checking things off
+          </Link>
+        </div>
+      )}
     </section>
+  );
+}
+
+function CollapsibleList({
+  title,
+  count,
+  total,
+  children,
+}: {
+  title: string;
+  count: number;
+  total: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="card p-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">
+          {title}{" "}
+          <span className="text-sm font-normal text-[var(--foreground-muted)] ml-1 font-mono">
+            {count} / {total}
+          </span>
+        </h2>
+      </div>
+      {children}
+    </div>
   );
 }
 

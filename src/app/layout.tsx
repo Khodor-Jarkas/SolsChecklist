@@ -4,6 +4,7 @@ import Link from "next/link";
 import "./globals.css";
 import { createClient, getUser } from "@/lib/supabase/server";
 import { SignOutButton } from "@/components/SignOutButton";
+import { UserSearch } from "@/components/UserSearch";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -13,7 +14,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "Sol's Checklist",
-  description: "Track your Sol's RNG progress — auras, achievements, and crafting.",
+  description: "Track your Sol's RNG progress — auras and achievements.",
 };
 
 export default async function RootLayout({
@@ -46,13 +47,15 @@ export default async function RootLayout({
                 <>
                   <NavLink href="/auras">Auras</NavLink>
                   <NavLink href="/achievements">Achievements</NavLink>
-                  <NavLink href="/crafting">Crafting</NavLink>
                   <NavLink href="/profile">Profile</NavLink>
+                  <div className="hidden md:block ml-2">
+                    <UserSearch />
+                  </div>
                   {username && (
                     <Link
                       href={`/u/${encodeURIComponent(username)}`}
                       className="hidden sm:inline-flex items-center ml-2 px-2 py-1 rounded-md bg-[var(--card)] border border-[var(--border)] text-xs text-[var(--foreground)]/70 hover:text-[var(--foreground)] hover:border-[var(--border-strong)] transition-colors"
-                      title="View your public profile"
+                      title="Your public profile"
                     >
                       @{username}
                     </Link>

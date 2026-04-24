@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient, getUser } from "@/lib/supabase/server";
 import { ProfileView } from "@/components/ProfileView";
-import { loadProfileStats } from "@/lib/profile-stats";
+import { loadProfileData } from "@/lib/profile-stats";
 
 export default async function PublicProfilePage({
   params,
@@ -19,15 +19,15 @@ export default async function PublicProfilePage({
     .single();
   if (!profile) notFound();
 
-  const [viewer, stats] = await Promise.all([
+  const [viewer, data] = await Promise.all([
     getUser(),
-    loadProfileStats(supabase, profile.id),
+    loadProfileData(supabase, profile.id),
   ]);
 
   return (
     <ProfileView
       profile={profile}
-      stats={stats}
+      data={data}
       isOwner={viewer?.id === profile.id}
     />
   );

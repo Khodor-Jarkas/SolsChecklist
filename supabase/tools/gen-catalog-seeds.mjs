@@ -17,11 +17,13 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
-const achievementsJson = JSON.parse(
-  fs.readFileSync("tmp-classify/achievements.json", "utf8"),
-);
-const itemsJson = JSON.parse(fs.readFileSync("tmp-classify/items.json", "utf8"));
-const runesJson = JSON.parse(fs.readFileSync("tmp-classify/runes.json", "utf8"));
+function readJsonIfExists(p) {
+  return fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, "utf8")) : null;
+}
+
+const achievementsJson = readJsonIfExists("tmp-classify/achievements.json");
+const itemsJson = readJsonIfExists("tmp-classify/items.json");
+const runesJson = readJsonIfExists("tmp-classify/runes.json");
 
 function urlFor(filename) {
   // MediaWiki normalises filenames to underscores before hashing/serving.
@@ -53,19 +55,23 @@ function cleanTitle(raw) {
 // -------------------- Achievements --------------------
 
 const achievements = [];
-for (const [category, rows] of Object.entries(achievementsJson)) {
-  for (const r of rows) {
-    const name = cleanTitle(r.title);
-    if (!name) continue;
-    const desc = [r.desc, r.req && `Requirement: ${r.req}`, r.reward && `Reward: ${r.reward}`]
-      .filter(Boolean)
-      .join(" • ");
-    achievements.push({
-      name,
-      description: desc,
-      category,
-      image: r.image && r.image !== "Placeholder.png" ? r.image : null,
-    });
+if (achievementsJson) {
+  for (const [category, rows] of Object.entries(achievementsJson)) {
+    for (const r of rows) {
+      const name = cleanTitle(r.title);
+      if (!name) continue;
+      const flavour = r.desc && r.desc !== "N/A" ? r.desc : null;
+      const requirement = r.req || null;
+      const reward = r.reward && r.reward !== "N/A" ? r.reward : null;
+      achievements.push({
+        name,
+        description: flavour,
+        requirement,
+        reward,
+        category,
+        image: r.image && r.image !== "Placeholder.png" ? r.image : null,
+      });
+    }
   }
 }
 
@@ -81,46 +87,50 @@ const kindMap = {
   Runes: "rune",
 };
 
-for (const [tab, rows] of Object.entries(itemsJson)) {
-  if (tab === "Unobtainable") continue;
-  const kind = kindMap[tab] || "misc";
-  if (tab === "Biome-Exclusive" || tab === "Runes") continue; // handled from separate sources
-  for (const r of rows) {
-    if (!r.name) continue;
-    // Dedupe — "Random Potion Sack" appears twice with one empty row.
-    if (items.find((x) => x.name === r.name) && !r.effect) continue;
-    const desc = [r.effect, r.obtainment && `Obtained from: ${r.obtainment}`]
-      .filter(Boolean)
-      .join(" • ")
-      .slice(0, 1000);
-    items.push({ name: r.name, kind, description: desc, image: r.image });
+if (itemsJson) {
+  for (const [tab, rows] of Object.entries(itemsJson)) {
+    if (tab === "Unobtainable") continue;
+    const kind = kindMap[tab] || "misc";
+    if (tab === "Biome-Exclusive" || tab === "Runes") continue; // handled from separate sources
+    for (const r of rows) {
+      if (!r.name) continue;
+      // Dedupe — "Random Potion Sack" appears twice with one empty row.
+      if (items.find((x) => x.name === r.name) && !r.effect) continue;
+      const desc = [r.effect, r.obtainment && `Obtained from: ${r.obtainment}`]
+        .filter(Boolean)
+        .join(" • ")
+        .slice(0, 1000);
+      items.push({ name: r.name, kind, description: desc, image: r.image });
+    }
   }
 }
 
-// Runes from Runes_full parse
-for (const [runeName, data] of Object.entries(runesJson)) {
+if (runesJson) {
+  for (const [runeName, data] of Object.entries(runesJson)) {
+    items.push({
+      name: runeName,
+      kind: "rune",
+      description: data.description
+        ?.replace(/^=\s*/, "")
+        ?.replace(/=== Appearance.*/is, "")
+        ?.trim()
+        ?.slice(0, 800),
+      image: data.image,
+    });
+  }
+}
+if (runesJson) {
+  // Add Rune of Everything (present in Runes page but parser split missed it).
   items.push({
-    name: runeName,
+    name: "Rune of Everything",
     kind: "rune",
-    description: data.description
-      ?.replace(/^=\s*/, "")
-      ?.replace(/=== Appearance.*/is, "")
-      ?.trim()
-      ?.slice(0, 800),
-    image: data.image,
+    description:
+      "A powerful stone containing the magic of all runes put together. Gives you 5 minutes of all rune effects at once.",
+    image: null,
   });
 }
-// Add Rune of Everything (present in Runes page but parser split missed it).
-items.push({
-  name: "Rune of Everything",
-  kind: "rune",
-  description:
-    "A powerful stone containing the magic of all runes put together. Gives you 5 minutes of all rune effects at once.",
-  image: null,
-});
 
-// Biome-Exclusive materials — parsed image data from per-item pages.
-const biomeMaterials = [
+const biomeMaterials = itemsJson ? [
   ["Wind Essence", "WindEssenceRender.png", "Spawns in one of the spawn locations at the start of Windy weather. Used for crafting."],
   ["Icicle", "Iciclerender.png", "Spawns in one of the spawn locations at the start of Snowy weather. Used for crafting."],
   ["Rainy Bottle", "RainyBottleRender.png", "Spawns in one of the spawn locations at the start of Rainy weather. Used for crafting."],
@@ -130,7 +140,7 @@ const biomeMaterials = [
   ["Feather Vial", "FeatherVialRender.png", "Spawns in one of the spawn locations at the start of the Heaven biome. Used for crafting."],
   ["Curruptaine", "CurruptaineRender.png", "Spawns in one of the spawn locations at the start of the Corruption biome. Used for crafting."],
   ["NULL?", "NULL??.png", "Spawns in one of the spawn locations at the start of the Null biome. Used for crafting."],
-];
+] : [];
 for (const [name, image, description] of biomeMaterials) {
   items.push({ name, kind: "material", description, image });
 }
@@ -138,6 +148,10 @@ for (const [name, image, description] of biomeMaterials) {
 // -------------------- Emit SQL --------------------
 
 function emit(rows, table, columns, path) {
+  if (rows.length === 0) {
+    console.log(`${path}: (skipped — no rows)`);
+    return;
+  }
   const lines = [];
   lines.push(
     `-- Sol's Checklist — ${table} seed. Generated by gen-catalog-seeds.mjs.`,
@@ -167,6 +181,8 @@ function emit(rows, table, columns, path) {
 const achievementRows = achievements.map((a) => ({
   name: a.name,
   description: a.description,
+  requirement: a.requirement,
+  reward: a.reward,
   category: a.category,
 }));
 const achievementImageRows = achievements
@@ -185,12 +201,16 @@ const itemImageRows = items
 emit(
   achievementRows,
   "achievements",
-  ["name", "description", "category"],
+  ["name", "description", "requirement", "reward", "category"],
   "supabase/seed_achievements.sql",
 );
 
 // Image seeds use UPDATE since conflict-target on image-only is pointless.
 function emitImages(rows, table, path) {
+  if (rows.length === 0) {
+    console.log(`${path}: (skipped — no rows)`);
+    return;
+  }
   const lines = [];
   lines.push(`-- Sol's Checklist — ${table} images. Generated by gen-catalog-seeds.mjs.`);
   lines.push(`-- Run AFTER seed_${table}.sql. Idempotent.`);

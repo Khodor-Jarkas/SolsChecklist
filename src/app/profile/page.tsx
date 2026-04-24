@@ -1,8 +1,9 @@
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { createClient, getUser } from "@/lib/supabase/server";
-import { ProfileView } from "@/components/ProfileView";
-import { loadProfileStats } from "@/lib/profile-stats";
 
+// /profile is now a convenience redirect to the canonical public URL
+// /u/<username>. Everyone's profile is public by default; there is no
+// separate owner view anymore.
 export default async function ProfilePage() {
   const user = await getUser();
   if (!user) redirect("/sign-in");
@@ -10,11 +11,10 @@ export default async function ProfilePage() {
   const supabase = await createClient();
   const { data: profile } = await supabase
     .from("profiles")
-    .select("*")
+    .select("username")
     .eq("id", user.id)
     .single();
-  if (!profile) notFound();
 
-  const stats = await loadProfileStats(supabase, user.id);
-  return <ProfileView profile={profile} stats={stats} isOwner />;
+  if (!profile) redirect("/sign-in");
+  redirect(`/u/${encodeURIComponent(profile.username)}`);
 }
