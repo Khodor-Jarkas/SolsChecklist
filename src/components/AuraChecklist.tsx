@@ -514,11 +514,20 @@ function AuraGrid({
         const has = Boolean(state);
         const showCounter = COUNTER_RARITIES.has(r);
         const rarityColor = RARITY_CLASS[r].split(" ")[0];
+        const isLimbo = a.biome === "The Limbo";
         return (
           <li
             key={a.id}
-            className={`card p-4 relative overflow-hidden ${has ? "card-owned" : ""}`}
+            className={[
+              "card p-4 relative overflow-hidden",
+              has ? "card-owned" : "",
+              isLimbo ? "card-limbo" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
           >
+            {/* Gothic cross-hatch overlay for Limbo cards — sits behind content */}
+            {isLimbo && <div className="limbo-ornament" aria-hidden />}
             <div className={`absolute left-0 top-0 bottom-0 w-1 bg-rarity-${r}`} />
 
             <div className="flex gap-3 pl-2">
@@ -549,7 +558,15 @@ function AuraGrid({
                   <div>{formatOdds(a.rarity_odds)}</div>
                   {a.biome && (
                     <div>
-                      <span className="text-[var(--foreground-muted)]">{a.biome}</span>
+                      <span
+                        className={
+                          isLimbo
+                            ? "text-violet-300 font-semibold tracking-wide"
+                            : "text-[var(--foreground-muted)]"
+                        }
+                      >
+                        {a.biome}
+                      </span>
                       {a.native_biome_odds && (
                         <span className={`ml-1 ${rarityColor}`}>
                           · {formatOdds(a.native_biome_odds)} native
@@ -623,16 +640,10 @@ function AuraThumb({
   rarity: Rarity;
   owned: boolean;
 }) {
-  const isLimbo = aura.biome === "The Limbo";
   const size = "h-20 w-20";
-  const ringByTier = owned
+  const ring = owned
     ? `bg-rarity-${rarity}/15 border-rarity-${rarity}/60`
     : "bg-[var(--surface)] border-[var(--border)]";
-  // Limbo auras get a distinctive purple-violet ring that overrides the tier
-  // colour so they stand out at a glance.
-  const ring = isLimbo
-    ? "bg-[#14091f] border-violet-400 shadow-[0_0_0_1px_rgba(139,92,246,0.35),0_0_14px_rgba(139,92,246,0.35)]"
-    : ringByTier;
   const classes = `${size} shrink-0 rounded-lg object-contain border-2 ${ring} p-1 relative`;
 
   const imgRef = useRef<HTMLImageElement | null>(null);
@@ -678,29 +689,19 @@ function AuraThumb({
   const shownSrc = hovered || !staticSrc ? aura.image_url : staticSrc;
 
   return (
-    <div className="relative shrink-0">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        ref={imgRef}
-        src={shownSrc}
-        alt={aura.name}
-        loading="lazy"
-        decoding="async"
-        crossOrigin="anonymous"
-        onLoad={handleLoaded}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        className={classes}
-      />
-      {isLimbo && (
-        <span
-          className="absolute -top-1 -right-1 text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded-sm bg-violet-500 text-white shadow"
-          title="Found in The Limbo"
-        >
-          Limbo
-        </span>
-      )}
-    </div>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      ref={imgRef}
+      src={shownSrc}
+      alt={aura.name}
+      loading="lazy"
+      decoding="async"
+      crossOrigin="anonymous"
+      onLoad={handleLoaded}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className={classes}
+    />
   );
 }
 
