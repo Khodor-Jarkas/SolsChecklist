@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/types";
 
@@ -38,7 +38,26 @@ export function AchievementsChecklist({
   const [justUnlocked, setJustUnlocked] = useState<number | null>(null);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [prefsHydrated, setPrefsHydrated] = useState(false);
   const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("achievements:prefs:v1");
+      if (raw) {
+        const p = JSON.parse(raw);
+        if (p.filter) setFilter(p.filter);
+      }
+    } catch {}
+    setPrefsHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!prefsHydrated) return;
+    try {
+      localStorage.setItem("achievements:prefs:v1", JSON.stringify({ filter }));
+    } catch {}
+  }, [prefsHydrated, filter]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

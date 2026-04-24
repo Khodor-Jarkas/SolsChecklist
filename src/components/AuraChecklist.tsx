@@ -58,14 +58,45 @@ export function AuraChecklist({
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [owned, setOwned] = useState<OwnedState>(initialOwned);
+  // Persisted filter/sort prefs — hydrated from localStorage after mount so
+  // SSR stays deterministic. Defaults: "rarity" sort (easiest → hardest within
+  // each tier, tiers already flow common → transcendent).
   const [rarity, setRarity] = useState<Rarity | "all">("all");
   const [biome, setBiome] = useState<string>("all");
   const [eventName, setEventName] = useState<string>("all");
   const [obtainment, setObtainment] = useState<Obtainment | "all">("all");
   const [filter, setFilter] = useState<Filter>("all");
-  const [sort, setSort] = useState<Sort>("odds");
+  const [sort, setSort] = useState<Sort>("rarity");
   const [view, setView] = useState<View>("rarity");
   const [query, setQuery] = useState("");
+  const [prefsHydrated, setPrefsHydrated] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("auras:prefs:v1");
+      if (raw) {
+        const p = JSON.parse(raw);
+        if (p.rarity) setRarity(p.rarity);
+        if (p.biome) setBiome(p.biome);
+        if (p.eventName) setEventName(p.eventName);
+        if (p.obtainment) setObtainment(p.obtainment);
+        if (p.filter) setFilter(p.filter);
+        if (p.sort) setSort(p.sort);
+        if (p.view) setView(p.view);
+      }
+    } catch { /* ignore corrupt prefs */ }
+    setPrefsHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!prefsHydrated) return;
+    try {
+      localStorage.setItem(
+        "auras:prefs:v1",
+        JSON.stringify({ rarity, biome, eventName, obtainment, filter, sort, view }),
+      );
+    } catch { /* localStorage disabled */ }
+  }, [prefsHydrated, rarity, biome, eventName, obtainment, filter, sort, view]);
   const [justToggled, setJustToggled] = useState<number | null>(null);
   const [bulkPending, setBulkPending] = useState<Rarity | null>(null);
   const [, startTransition] = useTransition();
@@ -346,8 +377,8 @@ export function AuraChecklist({
           onChange={(e) => setSort(e.target.value as Sort)}
           className="input max-w-[11rem]"
         >
-          <option value="odds">Sort: rarest first</option>
           <option value="rarity">Sort: easiest first</option>
+          <option value="odds">Sort: rarest first</option>
           <option value="name">Sort: A–Z</option>
         </select>
 
