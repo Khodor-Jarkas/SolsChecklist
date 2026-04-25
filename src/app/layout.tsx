@@ -44,6 +44,7 @@ export default async function RootLayout({
             </Link>
             <nav className="flex items-center gap-1 text-sm">
               <NavLink href="/auras">Auras</NavLink>
+              <NavLink href="/biomes">Biomes</NavLink>
               <NavLink href="/achievements">Achievements</NavLink>
               {user && <NavLink href="/profile">Profile</NavLink>}
               <div className="hidden md:block ml-2">

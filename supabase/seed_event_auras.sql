@@ -178,10 +178,10 @@ on conflict (name) do update set
 -- These spawn only in dev-spawned biomes (Citadel of Orders, The Null's
 -- Existence, Hyperspace Realm) so they're tagged Dev Biomes / 2026.
 insert into public.auras (name, rarity, rarity_odds, biome, event_name, event_year) values
-  ('Attorney',  'legendary', 270000, 'The Citadel of Orders', 'Dev Biomes', 2026),
+  ('Attorney',  'legendary', 270000, 'The Citadel Of Orders', 'Dev Biomes', 2026),
   ('Clockwork', 'legendary', 530000, 'The Null''s Existence', 'Dev Biomes', 2026),
   ('Prowler',   'legendary', 540000, 'The Hyperspace Realm',  'Dev Biomes', 2026),
-  ('Verdict',   'legendary', 700000, 'The Citadel of Orders', 'Dev Biomes', 2026)
+  ('Verdict',   'legendary', 700000, 'The Citadel Of Orders', 'Dev Biomes', 2026)
 on conflict (name) do update set
   event_name = excluded.event_name,
   event_year = excluded.event_year,
