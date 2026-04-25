@@ -39,6 +39,6 @@ next-env.d.ts
 .vscode/
 .idea/
 
-# Claude Code
+# local tooling / scratch
 .claude/
 tmp-classify/
