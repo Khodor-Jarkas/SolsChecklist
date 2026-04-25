@@ -139,3 +139,9 @@ update public.auras set image_url = 'https://static.wikia.nocookie.net/sol-rng/i
 update public.auras set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/8/8c/Pukekogodcollection.gif' where name = 'Pukeko : P.U.K.E.K.O.G.O.D.';
 update public.auras set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/6/63/AFoolExperienceCollection.gif' where name = 'A Fool''s Experience';
 update public.auras set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/0/06/Yaai_rework_collect.gif' where name = 'Equinox : You Are An Idiot';
+
+-- Boss Raid 2 Update auras
+update public.auras set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/6/60/AttorneyCollection.gif' where name = 'Attorney';
+update public.auras set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/4/47/ClockworkCollet.gif' where name = 'Clockwork';
+update public.auras set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/c/c9/Prowlercollet.gif' where name = 'Prowler';
+update public.auras set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/d/df/VerdictCollection.gif' where name = 'Verdict';
