@@ -181,13 +181,9 @@ export function AuraChecklist({
     () => (a: Aura, b: Aura) => {
       if (sort === "name") return a.name.localeCompare(b.name);
       if (sort === "odds") return (b.rarity_odds ?? 0) - (a.rarity_odds ?? 0);
-      // Default: easiest first within tier. Craftable auras have no odds, so
-      // pin MasterHand (the rarest crafting recipe) to the end and sort the
-      // rest alphabetically.
+      // Craftable auras use rarity_odds as an explicit difficulty rank (1 = easiest).
       if (a.rarity === "craftable" && b.rarity === "craftable") {
-        if (a.name === "MasterHand") return 1;
-        if (b.name === "MasterHand") return -1;
-        return a.name.localeCompare(b.name);
+        return (a.rarity_odds ?? 999) - (b.rarity_odds ?? 999);
       }
       return (a.rarity_odds ?? 0) - (b.rarity_odds ?? 0);
     },

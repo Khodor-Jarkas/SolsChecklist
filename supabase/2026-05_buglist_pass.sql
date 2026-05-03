@@ -105,4 +105,21 @@ update public.auras set obtainment = 'roll'
      'Centurion', 'Projection', 'Point : Zero', 'Astraios',
      'Virtual Memory', 'Oculus', 'Dizzy'
    );
-   
+
+-- ============================================================================
+-- Craftable aura difficulty order.
+-- rarity_odds is repurposed as a rank (1 = easiest) so the Crafting section
+-- sorts by actual recipe difficulty rather than alphabetically.
+-- Order derived from crafting stat value & known recipe complexity:
+--   1. Eclipse          (30k stat  — needs Divinus + Solar + Lunar)
+--   2. Chromatic : Hyper(35M stat  — medium recipe)
+--   3. Atlas : A.T.L.A.S(470M stat — needs 1× Atlas, Glorious tier)
+--   4. Matrix : Steampunk(high stat — 9× Matrix + bulk items)
+--   5. MasterHand       (highest   — ~3× Matrix : Steampunk's full recipe)
+-- ============================================================================
+update public.auras set rarity_odds = 1 where name = 'Eclipse'           and rarity = 'craftable';
+update public.auras set rarity_odds = 2 where name = 'Chromatic : Hyper' and rarity = 'craftable';
+update public.auras set rarity_odds = 3 where name = 'Atlas : A.T.L.A.S.'and rarity = 'craftable';
+update public.auras set rarity_odds = 4 where name = 'Matrix : Steampunk' and rarity = 'craftable';
+update public.auras set rarity_odds = 5 where name = 'MasterHand'         and rarity = 'craftable';
+
