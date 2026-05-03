@@ -824,8 +824,6 @@ const OBTAINMENT_STYLE: Record<Obtainment, string> = {
   battle_pass: "bg-amber-500/10 text-amber-300 border-amber-500/30",
   quest:       "bg-pink-500/10 text-pink-300 border-pink-500/30",
   wheel:       "bg-rose-500/10 text-rose-300 border-rose-500/30",
-  ugc:         "bg-indigo-500/10 text-indigo-300 border-indigo-500/30",
-  login:       "bg-teal-500/10 text-teal-300 border-teal-500/30",
 };
 
 function ObtainmentBadge({ method }: { method: Obtainment }) {

@@ -4,9 +4,7 @@ export type Obtainment =
   | "shop"         // purchased in-game (Lime's, Mari's, token shops, etc.)
   | "battle_pass"  // season/battle pass reward
   | "quest"        // quest or questline completion
-  | "wheel"        // roulette / wheel spin
-  | "ugc"          // UGC redemption
-  | "login";       // login reward
+  | "wheel";       // roulette / wheel spin
 
 export type Rarity =
   | "common"         // 1 – 999

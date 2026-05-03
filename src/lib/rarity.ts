@@ -16,8 +16,6 @@ export const OBTAINMENT_LABEL: Record<Obtainment, string> = {
   battle_pass: "Battle Pass",
   quest: "Quest",
   wheel: "Wheel",
-  ugc: "UGC",
-  login: "Login",
 };
 
 export const RARITY_ORDER: Rarity[] = [
