@@ -105,3 +105,4 @@ update public.auras set obtainment = 'roll'
      'Centurion', 'Projection', 'Point : Zero', 'Astraios',
      'Virtual Memory', 'Oculus', 'Dizzy'
    );
+   
