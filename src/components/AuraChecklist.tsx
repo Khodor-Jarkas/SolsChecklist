@@ -66,6 +66,18 @@ function adminSubgroupLabel(biome: string | null): string {
   return ADMIN_EVENT_SUBGROUPS[biome] ?? biome;
 }
 
+// Crafting difficulty order (easiest → hardest) based on recipe cost / stat grant.
+// Used as the sort key for the Crafting section instead of rarity_odds (which is
+// null for all craftable auras and would otherwise show as "1 in 0").
+const CRAFTABLE_ORDER: Record<string, number> = {
+  "Eclipse":            1,
+  "Cell Asteroides":    2,
+  "Chromatic : Hyper":  3,
+  "Atlas : A.T.L.A.S.": 4,
+  "Matrix : Steampunk": 5,
+  "MasterHand":         6,
+};
+
 // Only show the "Rolled x N" counter for these rarities — for common/epic/etc
 // tracking counts is noisy; for rarities this high, it's actually interesting.
 const COUNTER_RARITIES = new Set<Rarity>([
@@ -181,9 +193,8 @@ export function AuraChecklist({
     () => (a: Aura, b: Aura) => {
       if (sort === "name") return a.name.localeCompare(b.name);
       if (sort === "odds") return (b.rarity_odds ?? 0) - (a.rarity_odds ?? 0);
-      // Craftable auras use rarity_odds as an explicit difficulty rank (1 = easiest).
       if (a.rarity === "craftable" && b.rarity === "craftable") {
-        return (a.rarity_odds ?? 999) - (b.rarity_odds ?? 999);
+        return (CRAFTABLE_ORDER[a.name] ?? 999) - (CRAFTABLE_ORDER[b.name] ?? 999);
       }
       return (a.rarity_odds ?? 0) - (b.rarity_odds ?? 0);
     },
