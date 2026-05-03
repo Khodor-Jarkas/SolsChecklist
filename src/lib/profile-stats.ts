@@ -19,7 +19,7 @@ export async function loadProfileData(
     supabase.from("items").select("*", { count: "exact", head: true }),
     supabase
       .from("user_auras")
-      .select("count, first_obtained_at, auras(id, name, rarity, rarity_odds, image_url, event_name)")
+      .select("count, first_obtained_at, auras(id, name, rarity, rarity_odds, native_biome_odds, biome, event_name, event_year, description, obtainment, secondary_obtainment, image_url)")
       .eq("user_id", userId),
     supabase
       .from("user_achievements")
@@ -49,7 +49,7 @@ export async function loadProfileData(
   let normalOwned = 0;
   let eventOwned = 0;
 
-  type AuraJoin = { id: number; name: string; rarity: Rarity; rarity_odds: number | null; image_url: string | null; event_name: string | null };
+  type AuraJoin = { id: number; name: string; rarity: Rarity; rarity_odds: number | null; native_biome_odds: number | null; biome: string | null; event_name: string | null; event_year: number | null; description: string | null; obtainment: string | null; secondary_obtainment: string | null; image_url: string | null };
   type OwnedAura = { count: number; first_obtained_at: string; aura: AuraJoin };
 
   const ownedAuras: OwnedAura[] = [];

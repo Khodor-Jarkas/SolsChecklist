@@ -2,6 +2,7 @@ import Link from "next/link";
 import { RARITY_CLASS, RARITY_LABEL, RARITY_ORDER, formatOdds } from "@/lib/rarity";
 import type { Rarity } from "@/lib/supabase/types";
 import { PrivacyToggle } from "./PrivacyToggle";
+import { ProfileAuraGrid } from "./ProfileAuraGrid";
 
 type Profile = {
   id: string;
@@ -27,7 +28,7 @@ export type ProfileStats = {
   catalogByRarity: Map<Rarity, number>;
 };
 
-type OwnedAura = {
+export type OwnedAuraItem = {
   count: number;
   first_obtained_at: string;
   aura: {
@@ -35,8 +36,14 @@ type OwnedAura = {
     name: string;
     rarity: Rarity;
     rarity_odds: number | null;
-    image_url: string | null;
+    native_biome_odds: number | null;
+    biome: string | null;
     event_name: string | null;
+    event_year: number | null;
+    description: string | null;
+    obtainment: string | null;
+    secondary_obtainment: string | null;
+    image_url: string | null;
   };
 };
 
@@ -55,7 +62,7 @@ type OwnedAchievement = {
 
 export type ProfileData = {
   stats: ProfileStats;
-  ownedAuras: OwnedAura[];
+  ownedAuras: OwnedAuraItem[];
   ownedAchievements: OwnedAchievement[];
 };
 
@@ -231,47 +238,7 @@ export function ProfileView({
           count={ownedAuras.length}
           total={stats.auraTotal}
         >
-          <ul className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-3">
-            {[...ownedAuras]
-              .sort((a, b) => (b.aura.rarity_odds ?? 0) - (a.aura.rarity_odds ?? 0))
-              .map((o) => {
-                const r = o.aura.rarity;
-                const rarityColor = RARITY_CLASS[r].split(" ")[0];
-                return (
-                  <li key={o.aura.id} className="group relative">
-                    <div
-                      className={`aspect-square rounded-lg bg-[var(--surface)] border-2 border-rarity-${r}/40 p-1 flex items-center justify-center overflow-hidden`}
-                    >
-                      {o.aura.image_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={`/api/image?url=${encodeURIComponent(o.aura.image_url)}`}
-                          alt={o.aura.name}
-                          loading="lazy"
-                          decoding="async"
-                          className="w-full h-full object-contain"
-                        />
-                      ) : (
-                        <span className={`text-lg font-semibold ${rarityColor}`}>
-                          {o.aura.name.replace(/[^A-Za-z★]/g, "").charAt(0).toUpperCase() || "?"}
-                        </span>
-                      )}
-                      {o.count > 1 && (
-                        <span className="absolute top-1 right-1 text-[10px] font-mono bg-black/60 backdrop-blur text-white px-1 rounded">
-                          ×{o.count}
-                        </span>
-                      )}
-                    </div>
-                    <p className={`mt-1 text-[11px] font-medium truncate text-center ${rarityColor}`}>
-                      {o.aura.name}
-                    </p>
-                    <p className="text-[10px] text-[var(--foreground-faint)] font-mono text-center">
-                      {formatOdds(o.aura.rarity_odds) || RARITY_LABEL[r]}
-                    </p>
-                  </li>
-                );
-              })}
-          </ul>
+          <ProfileAuraGrid ownedAuras={ownedAuras} />
         </CollapsibleList>
       )}
 

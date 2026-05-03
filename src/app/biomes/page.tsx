@@ -1,7 +1,8 @@
 import { createClient, getUser } from "@/lib/supabase/server";
 import { BIOMES, BIOME_CATEGORIES, type Biome } from "@/lib/biomes";
-import { RARITY_CLASS, RARITY_LABEL, formatOdds } from "@/lib/rarity";
-import type { Database, Rarity } from "@/lib/supabase/types";
+import { RARITY_LABEL } from "@/lib/rarity";
+import type { Database } from "@/lib/supabase/types"; // Database used for ownedRows type inference
+import { BiomeAuraList, type BiomeAura } from "@/components/BiomeAuraList";
 
 type Aura = Database["public"]["Tables"]["auras"]["Row"];
 
@@ -19,7 +20,7 @@ export default async function BiomesPage() {
   const [{ data: auras }, { data: ownedRows }] = await Promise.all([
     supabase
       .from("auras")
-      .select("id, name, rarity, rarity_odds, native_biome_odds, biome, event_name, image_url"),
+      .select("id, name, rarity, rarity_odds, native_biome_odds, biome, event_name, event_year, description, obtainment, secondary_obtainment, image_url"),
     user
       ? supabase.from("user_auras").select("aura_id").eq("user_id", user.id)
       : Promise.resolve({ data: [] as { aura_id: number }[] }),
@@ -27,11 +28,11 @@ export default async function BiomesPage() {
 
   const ownedIds = new Set((ownedRows ?? []).map((r) => r.aura_id));
 
-  const aurasByBiome = new Map<string, Aura[]>();
+  const aurasByBiome = new Map<string, BiomeAura[]>();
   for (const a of auras ?? []) {
     if (!a.biome) continue;
     const list = aurasByBiome.get(a.biome) ?? [];
-    list.push(a as Aura);
+    list.push(a as BiomeAura);
     aurasByBiome.set(a.biome, list);
   }
   for (const list of aurasByBiome.values()) {
@@ -70,7 +71,7 @@ export default async function BiomesPage() {
                   key={b.name}
                   biome={b}
                   auras={aurasByBiome.get(b.name) ?? []}
-                  ownedIds={ownedIds}
+                  ownedIds={[...(ownedIds ?? new Set())]}
                 />
               ))}
             </div>
@@ -87,11 +88,12 @@ function BiomeCard({
   ownedIds,
 }: {
   biome: Biome;
-  auras: Aura[];
-  ownedIds: Set<number>;
+  auras: BiomeAura[];
+  ownedIds: number[];
 }) {
+  const ownedSet = new Set(ownedIds);
   const rolledHere = auras.length;
-  const ownedHere = auras.filter((a) => ownedIds.has(a.id)).length;
+  const ownedHere = auras.filter((a) => ownedSet.has(a.id)).length;
   const isNew = biome.name === "Singularity";
 
   return (
@@ -166,53 +168,7 @@ function BiomeCard({
           No auras catalogued for this biome yet.
         </div>
       ) : (
-        <ul className="divide-y divide-[var(--border)]/60">
-          {auras.map((a) => {
-            const r = a.rarity as Rarity;
-            const owned = ownedIds.has(a.id);
-            const rarityColor = RARITY_CLASS[r].split(" ")[0];
-            return (
-              <li
-                key={a.id}
-                className={`px-5 py-2.5 flex items-center gap-3 ${owned ? "bg-[var(--card-hover)]/30" : ""}`}
-              >
-                {a.image_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={a.image_url}
-                    alt={a.name}
-                    loading="lazy"
-                    decoding="async"
-                    className="h-10 w-10 shrink-0 rounded-md object-contain bg-[var(--surface)] border border-[var(--border)] p-0.5"
-                  />
-                ) : (
-                  <div className={`h-10 w-10 shrink-0 rounded-md bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-sm font-semibold ${rarityColor}`}>
-                    {a.name.replace(/[^A-Za-z★]/g, "").charAt(0).toUpperCase() || "?"}
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className={`text-sm truncate ${owned ? "" : "text-[var(--foreground-muted)]"}`}>
-                    {a.name}
-                  </div>
-                  <div className="text-[11px] font-mono text-[var(--foreground-faint)]">
-                    <span className={rarityColor}>{RARITY_LABEL[r]}</span>
-                    {a.rarity_odds && <> · {formatOdds(a.rarity_odds)}</>}
-                    {a.native_biome_odds && (
-                      <span className={`ml-1 ${rarityColor}`}>
-                        · {formatOdds(a.native_biome_odds)} native
-                      </span>
-                    )}
-                  </div>
-                </div>
-                {owned && (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 text-[var(--accent)] shrink-0">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+        <BiomeAuraList auras={auras} ownedIds={ownedIds} />
       )}
     </article>
   );
