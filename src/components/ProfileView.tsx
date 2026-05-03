@@ -249,9 +249,7 @@ export function ProfileView({
                           alt={o.aura.name}
                           loading="lazy"
                           decoding="async"
-                          width={48}
-                          height={48}
-                          className="max-w-full max-h-full object-contain"
+                          className="w-full h-full object-contain"
                         />
                       ) : (
                         <span className={`text-lg font-semibold ${rarityColor}`}>
