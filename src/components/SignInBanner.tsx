@@ -27,5 +27,5 @@ export function SignInBanner({ what }: { what: string }) {
         </Link>
       </div>
     </div>
-  );// damn
+  );
 }
