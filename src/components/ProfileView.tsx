@@ -245,9 +245,12 @@ export function ProfileView({
                       {o.aura.image_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          src={o.aura.image_url}
+                          src={`/api/image?url=${encodeURIComponent(o.aura.image_url)}`}
                           alt={o.aura.name}
                           loading="lazy"
+                          decoding="async"
+                          width={48}
+                          height={48}
                           className="max-w-full max-h-full object-contain"
                         />
                       ) : (
@@ -290,9 +293,12 @@ export function ProfileView({
                   {o.achievement.image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={o.achievement.image_url}
+                      src={`/api/image?url=${encodeURIComponent(o.achievement.image_url)}`}
                       alt={o.achievement.name}
                       loading="lazy"
+                      decoding="async"
+                      width={40}
+                      height={40}
                       className="h-10 w-10 shrink-0 rounded-md bg-[var(--surface)] p-0.5 object-contain border border-[var(--border)]"
                     />
                   ) : (

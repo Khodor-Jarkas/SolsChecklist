@@ -116,3 +116,20 @@ update public.auras set rarity = 'craftable' where name = 'Cell Asteroides';
 -- UI via CRAFTABLE_ORDER; non-null odds would show as bogus "1 in N" labels).
 update public.auras set rarity_odds = null where rarity = 'craftable';
 
+-- ============================================================================
+-- Images for Eon 1-20 new auras (sourced via Fandom API).
+-- ============================================================================
+update public.auras set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/a/ad/DizzyColl.gif'                where name = 'Dizzy';
+update public.auras set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/d/da/Cell_Asteroides_collect.gif' where name = 'Cell Asteroides';
+update public.auras set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/f/f8/Pleiades_collect.gif'        where name = 'Pleiades';
+update public.auras set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/d/d8/PulsarCollection.gif'        where name = 'Pulsar';
+update public.auras set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/9/91/Constella_Collection.gif'    where name = 'Constella';
+update public.auras set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/f/fd/Vega_collect.gif'            where name = 'Vega';
+update public.auras set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/9/90/Astronautcollection.gif'     where name = 'Astronaut';
+update public.auras set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/f/f8/CenturionCollection.gif'     where name = 'Centurion';
+update public.auras set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/8/81/ProjectionCollection.gif'    where name = 'Projection';
+update public.auras set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/3/3c/PointZeroCol.gif'            where name = 'Point : Zero';
+update public.auras set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/3/3c/AstriosCollection.gif'       where name = 'Astraios';
+update public.auras set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/b/ba/Virtual_memory_collect.gif'  where name = 'Virtual Memory';
+update public.auras set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/7/7c/Oculus_collect.gif'          where name = 'Oculus';
+
