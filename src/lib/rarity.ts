@@ -7,8 +7,6 @@ export const OBTAINMENT_ORDER: Obtainment[] = [
   "battle_pass",
   "quest",
   "wheel",
-  "ugc",
-  "login",
 ];
 
 export const OBTAINMENT_LABEL: Record<Obtainment, string> = {
@@ -47,7 +45,7 @@ export const RARITY_LABEL: Record<Rarity, string> = {
   transcendent: "Transcendent",
   challenged: "Challenged",
   challenged_plus: "Challenged+",
-  craftable: "Misc",
+  craftable: "Crafting",
 };
 
 // Text colour + a matching border tint (at 40% opacity) for card accents.

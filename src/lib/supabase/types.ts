@@ -62,6 +62,7 @@ export type Database = {
           event_name: string | null;
           event_year: number | null;
           obtainment: Obtainment | null;
+          secondary_obtainment: Obtainment | null;
           image_url: string | null;
           description: string | null;
         };
@@ -74,6 +75,7 @@ export type Database = {
           event_name?: string | null;
           event_year?: number | null;
           obtainment?: Obtainment | null;
+          secondary_obtainment?: Obtainment | null;
           image_url?: string | null;
           description?: string | null;
         };
@@ -86,6 +88,7 @@ export type Database = {
           event_name?: string | null;
           event_year?: number | null;
           obtainment?: Obtainment | null;
+          secondary_obtainment?: Obtainment | null;
           image_url?: string | null;
           description?: string | null;
         };

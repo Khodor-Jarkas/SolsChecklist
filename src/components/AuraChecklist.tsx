@@ -11,6 +11,14 @@ import {
   formatOdds,
 } from "@/lib/rarity";
 import type { Database, Obtainment, Rarity } from "@/lib/supabase/types";
+import { BIOMES } from "@/lib/biomes";
+
+// Dev / admin-spawn biomes are surfaced via the events view ("Admin Events"),
+// so we exclude them from the biome filter and from the normal-view aura list
+// to keep the rarity view focused on regularly rollable content.
+const DEV_BIOME_NAMES = new Set(
+  BIOMES.filter((b) => b.category === "dev").map((b) => b.name),
+);
 
 type Aura = Database["public"]["Tables"]["auras"]["Row"];
 type OwnedState = Record<number, { count: number; first_obtained_at: string }>;
@@ -25,16 +33,37 @@ const EVENT_ORDER = [
   "April Fools",
   "Easter",
   "Summer",
-  "Innovator",
+  "RIA event",
   "Halloween",
   "Winter",
   "Christmas",
   "Anniversary",
+  "Admin Events",
 ];
 
 function eventRank(name: string): number {
   const i = EVENT_ORDER.indexOf(name);
   return i === -1 ? 999 : i;
+}
+
+// Admin Events sub-grouping: each dev biome maps to a friendly label naming
+// the developer responsible. Used in the events view to split the section
+// into per-dev cards instead of the default per-year cards.
+const ADMIN_EVENT_SUBGROUPS: Record<string, string> = {
+  "The Citadel Of Orders": "Word's Admin Abuse — Citadel",
+  "The Null's Existence": "Axis's Admin Abuse — Null's",
+  "The Hyperspace Realm": "Xyz's Admin Abuse — Hyperspace",
+};
+const ADMIN_EVENT_SUBGROUP_ORDER = [
+  "Word's Admin Abuse — Citadel",
+  "Axis's Admin Abuse — Null's",
+  "Xyz's Admin Abuse — Hyperspace",
+  "Astrald's Easter Event",
+];
+
+function adminSubgroupLabel(biome: string | null): string {
+  if (!biome) return "Other";
+  return ADMIN_EVENT_SUBGROUPS[biome] ?? biome;
 }
 
 // Only show the "Rolled x N" counter for these rarities — for common/epic/etc
@@ -103,9 +132,21 @@ export function AuraChecklist({
 
   const biomes = useMemo(() => {
     const set = new Set<string>();
-    for (const a of auras) if (a.biome) set.add(a.biome);
+    for (const a of auras) {
+      if (!a.biome) continue;
+      // Dev biomes only belong in the events view's biome filter.
+      if (view === "rarity" && DEV_BIOME_NAMES.has(a.biome)) continue;
+      set.add(a.biome);
+    }
     return ["all", ...Array.from(set).sort()];
-  }, [auras]);
+  }, [auras, view]);
+
+  // If the persisted biome filter isn't valid in the current view (e.g. user
+  // selected a dev biome under events, then switched to rarity), drop it back
+  // to "all" so the visible aura list isn't silently empty.
+  useEffect(() => {
+    if (biome !== "all" && !biomes.includes(biome)) setBiome("all");
+  }, [biome, biomes]);
 
   const eventNames = useMemo(() => {
     const set = new Set<string>();
@@ -122,7 +163,12 @@ export function AuraChecklist({
       if (rarity !== "all" && a.rarity !== rarity) return false;
       if (biome !== "all" && a.biome !== biome) return false;
       if (eventName !== "all" && a.event_name !== eventName) return false;
-      if (obtainment !== "all" && a.obtainment !== obtainment) return false;
+      if (
+        obtainment !== "all" &&
+        a.obtainment !== obtainment &&
+        a.secondary_obtainment !== obtainment
+      )
+        return false;
       const has = Boolean(owned[a.id]);
       if (filter === "owned" && !has) return false;
       if (filter === "missing" && has) return false;
@@ -135,7 +181,15 @@ export function AuraChecklist({
     () => (a: Aura, b: Aura) => {
       if (sort === "name") return a.name.localeCompare(b.name);
       if (sort === "odds") return (b.rarity_odds ?? 0) - (a.rarity_odds ?? 0);
-      return (a.rarity_odds ?? 0) - (b.rarity_odds ?? 0); // rarity: within-tier, easiest first
+      // Default: easiest first within tier. Craftable auras have no odds, so
+      // pin MasterHand (the rarest crafting recipe) to the end and sort the
+      // rest alphabetically.
+      if (a.rarity === "craftable" && b.rarity === "craftable") {
+        if (a.name === "MasterHand") return 1;
+        if (b.name === "MasterHand") return -1;
+        return a.name.localeCompare(b.name);
+      }
+      return (a.rarity_odds ?? 0) - (b.rarity_odds ?? 0);
     },
     [sort],
   );
@@ -153,25 +207,43 @@ export function AuraChecklist({
       .map((r) => ({ rarity: r, auras: byTier.get(r)!.slice().sort(sorter) }));
   }, [filtered, sorter]);
 
-  // Group by event -> year. Years sorted newest first within each event.
+  // Group by event -> sub-section. For most events the sub-section is the
+  // year (newest first). For "Admin Events" the sub-section is the dev who
+  // ran it (mapped from the dev biome the aura spawns in).
   const eventSections = useMemo(() => {
-    const byEvent = new Map<string, Map<number, Aura[]>>();
+    const byEvent = new Map<string, Map<string, Aura[]>>();
     for (const a of filtered) {
       if (!a.event_name) continue;
-      const year = a.event_year ?? 0;
+      const subKey =
+        a.event_name === "Admin Events"
+          ? adminSubgroupLabel(a.biome)
+          : String(a.event_year ?? 0);
       if (!byEvent.has(a.event_name)) byEvent.set(a.event_name, new Map());
-      const yearMap = byEvent.get(a.event_name)!;
-      if (!yearMap.has(year)) yearMap.set(year, []);
-      yearMap.get(year)!.push(a);
+      const subMap = byEvent.get(a.event_name)!;
+      if (!subMap.has(subKey)) subMap.set(subKey, []);
+      subMap.get(subKey)!.push(a);
     }
     return Array.from(byEvent.entries())
       .sort(([a], [b]) => eventRank(a) - eventRank(b) || a.localeCompare(b))
-      .map(([name, yearMap]) => ({
-        name,
-        years: Array.from(yearMap.entries())
-          .sort(([a], [b]) => b - a)
-          .map(([year, list]) => ({ year, auras: list.slice().sort(sorter) })),
-      }));
+      .map(([name, subMap]) => {
+        const isAdmin = name === "Admin Events";
+        const entries = Array.from(subMap.entries()).sort(([a], [b]) => {
+          if (isAdmin) {
+            const ai = ADMIN_EVENT_SUBGROUP_ORDER.indexOf(a);
+            const bi = ADMIN_EVENT_SUBGROUP_ORDER.indexOf(b);
+            return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+          }
+          return Number(b) - Number(a); // years: newest first
+        });
+        return {
+          name,
+          subSections: entries.map(([key, list]) => ({
+            key,
+            label: isAdmin ? key : key === "0" ? "Undated" : key,
+            auras: list.slice().sort(sorter),
+          })),
+        };
+      });
   }, [filtered, sorter]);
 
   const stats = useMemo(() => {
@@ -443,8 +515,8 @@ export function AuraChecklist({
         </div>
       ) : (
         <div className="space-y-12">
-          {eventSections.map(({ name, years }) => {
-            const allInEvent = years.flatMap((y) => y.auras);
+          {eventSections.map(({ name, subSections }) => {
+            const allInEvent = subSections.flatMap((s) => s.auras);
             const ownedInEvent = allInEvent.filter((a) => owned[a.id]).length;
             return (
               <section key={name} className="space-y-5">
@@ -455,16 +527,16 @@ export function AuraChecklist({
                   </span>
                 </div>
                 <div className="space-y-8">
-                  {years.map(({ year, auras: list }) => {
-                    const ownedInYear = list.filter((a) => owned[a.id]).length;
+                  {subSections.map(({ key, label, auras: list }) => {
+                    const ownedInSub = list.filter((a) => owned[a.id]).length;
                     return (
-                      <div key={year} className="space-y-3">
+                      <div key={key} className="space-y-3">
                         <div className="flex items-center gap-3 flex-wrap">
                           <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--foreground-muted)]">
-                            {year || "Undated"}
+                            {label}
                           </h3>
                           <span className="text-xs font-mono text-[var(--foreground-faint)]">
-                            {ownedInYear} / {list.length}
+                            {ownedInSub} / {list.length}
                           </span>
                         </div>
                         <AuraGrid
@@ -582,11 +654,19 @@ function AuraGrid({
                   )}
                 </div>
 
-                {a.obtainment && a.obtainment !== "roll" && (
-                  <div className="mt-2">
-                    <ObtainmentBadge method={a.obtainment} />
-                  </div>
-                )}
+                {(() => {
+                  const badges: Obtainment[] = [];
+                  if (a.obtainment && a.obtainment !== "roll") badges.push(a.obtainment);
+                  if (a.secondary_obtainment) badges.push(a.secondary_obtainment);
+                  if (badges.length === 0) return null;
+                  return (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {badges.map((m) => (
+                        <ObtainmentBadge key={m} method={m} />
+                      ))}
+                    </div>
+                  );
+                })()}
 
                 {a.description && (
                   <p className="text-xs text-[var(--foreground-muted)] mt-2 line-clamp-2 leading-relaxed">
