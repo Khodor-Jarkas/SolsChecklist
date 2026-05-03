@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   RARITY_LABEL,
@@ -472,7 +472,7 @@ export function AuraChecklist({
         <EmptyState />
       ) : view === "rarity" ? (
         <div className="space-y-10">
-          {sections.map(({ rarity: r, auras: list }) => {
+          {sections.map(({ rarity: r, auras: list }, sectionIdx) => {
             const ownedInSection = list.filter((a) => owned[a.id]).length;
             const allOwned = ownedInSection === list.length;
             const rarityColor = RARITY_CLASS[r].split(" ")[0];
@@ -508,6 +508,7 @@ export function AuraChecklist({
                   incrementCount={incrementCount}
                   showRarity={false}
                   readOnly={readOnly}
+                  priorityCount={sectionIdx === 0 ? 6 : 0}
                 />
               </section>
             );
@@ -569,6 +570,7 @@ function AuraGrid({
   incrementCount,
   showRarity = false,
   readOnly = false,
+  priorityCount = 0,
 }: {
   list: Aura[];
   owned: OwnedState;
@@ -577,10 +579,11 @@ function AuraGrid({
   incrementCount: (a: Aura, d: number) => void;
   showRarity?: boolean;
   readOnly?: boolean;
+  priorityCount?: number;
 }) {
   return (
     <ul className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-      {list.map((a) => {
+      {list.map((a, idx) => {
         const r = a.rarity as Rarity;
         const state = owned[a.id];
         const has = Boolean(state);
@@ -618,7 +621,7 @@ function AuraGrid({
                 </button>
               )}
 
-              <AuraThumb aura={a} rarity={r} owned={has} />
+              <AuraThumb aura={a} rarity={r} owned={has} priority={idx < priorityCount} />
 
               <div className="flex-1 min-w-0">
                 <h3 className={`font-medium leading-tight ${has ? "" : "text-[var(--foreground-muted)]"}`}>
@@ -708,51 +711,24 @@ function AuraGrid({
   );
 }
 
-// Per-URL cache so the same GIF is only captured once across remounts.
-const frameCache = new Map<string, string>();
-
 function AuraThumb({
   aura,
   rarity,
   owned,
+  priority = false,
 }: {
   aura: Aura;
   rarity: Rarity;
   owned: boolean;
+  priority?: boolean;
 }) {
   const size = "h-20 w-20";
   const ring = owned
     ? `bg-rarity-${rarity}/15 border-rarity-${rarity}/60`
     : "bg-[var(--surface)] border-[var(--border)]";
-  const classes = `${size} shrink-0 rounded-lg object-contain border-2 ${ring} p-1 relative`;
+  const classes = `${size} shrink-0 rounded-lg object-contain border-2 ${ring} p-1`;
 
-  const imgRef = useRef<HTMLImageElement | null>(null);
   const [hovered, setHovered] = useState(false);
-  const [staticSrc, setStaticSrc] = useState<string | null>(
-    aura.image_url ? (frameCache.get(aura.image_url) ?? null) : null,
-  );
-
-  // Capture the first frame only AFTER the browser's native lazy-load
-  // actually fetches the image — no preemptive `new Image()` spam on mount.
-  function handleLoaded() {
-    const url = aura.image_url;
-    if (!url || frameCache.has(url)) return;
-    const el = imgRef.current;
-    if (!el) return;
-    try {
-      const canvas = document.createElement("canvas");
-      canvas.width = el.naturalWidth || 150;
-      canvas.height = el.naturalHeight || 150;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      ctx.drawImage(el, 0, 0);
-      const dataUrl = canvas.toDataURL("image/png");
-      frameCache.set(url, dataUrl);
-      setStaticSrc(dataUrl);
-    } catch {
-      // Tainted canvas — stays on live GIF.
-    }
-  }
 
   if (!aura.image_url) {
     return (
@@ -764,20 +740,18 @@ function AuraThumb({
     );
   }
 
-  // Show the live GIF while hovering or while the first-frame capture is
-  // still pending. Freeze to the captured PNG otherwise.
-  const shownSrc = hovered || !staticSrc ? aura.image_url : staticSrc;
+  const proxyUrl = `/api/image?url=${encodeURIComponent(aura.image_url)}`;
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      ref={imgRef}
-      src={shownSrc}
+      src={hovered ? aura.image_url : proxyUrl}
       alt={aura.name}
-      loading="lazy"
+      loading={priority ? "eager" : "lazy"}
       decoding="async"
-      crossOrigin="anonymous"
-      onLoad={handleLoaded}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      fetchPriority={priority ? "high" : ("auto" as any)}
+      onError={() => setHovered(true)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className={classes}
