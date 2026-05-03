@@ -755,8 +755,6 @@ function AuraThumb({
     : "bg-[var(--surface)] border-[var(--border)]";
   const classes = `${size} shrink-0 rounded-lg object-contain border-2 ${ring} p-1`;
 
-  const [hovered, setHovered] = useState(false);
-
   if (!aura.image_url) {
     return (
       <div
@@ -767,20 +765,15 @@ function AuraThumb({
     );
   }
 
-  const proxyUrl = `/api/image?url=${encodeURIComponent(aura.image_url)}`;
-
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={hovered ? aura.image_url : proxyUrl}
+      src={aura.image_url}
       alt={aura.name}
       loading={priority ? "eager" : "lazy"}
       decoding="async"
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       fetchPriority={priority ? "high" : ("auto" as any)}
-      onError={() => setHovered(true)}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
       className={classes}
     />
   );
