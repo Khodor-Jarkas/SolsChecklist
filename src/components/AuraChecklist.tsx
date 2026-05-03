@@ -146,8 +146,9 @@ export function AuraChecklist({
     const set = new Set<string>();
     for (const a of auras) {
       if (!a.biome) continue;
-      // Dev biomes only belong in the events view's biome filter.
       if (view === "rarity" && DEV_BIOME_NAMES.has(a.biome)) continue;
+      // Events view: only include biomes that actually host event auras.
+      if (view === "events" && !a.event_name) continue;
       set.add(a.biome);
     }
     return ["all", ...Array.from(set).sort()];
