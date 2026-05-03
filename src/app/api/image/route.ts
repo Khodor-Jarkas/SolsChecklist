@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     });
     if (!upstream.ok) return new NextResponse(null, { status: 502 });
 
-    const webp = await sharp(Buffer.from(await upstream.arrayBuffer()), { animated: false })
+    const webp = await sharp(Buffer.from(await upstream.arrayBuffer()), { animated: true })
       .resize(150, 150, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .webp({ quality: 85 })
       .toBuffer();

@@ -245,7 +245,7 @@ export function ProfileView({
                       {o.aura.image_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          src={o.aura.image_url}
+                          src={`/api/image?url=${encodeURIComponent(o.aura.image_url)}`}
                           alt={o.aura.name}
                           loading="lazy"
                           decoding="async"

@@ -765,10 +765,12 @@ function AuraThumb({
     );
   }
 
+  const src = `/api/image?url=${encodeURIComponent(aura.image_url)}`;
+
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={aura.image_url}
+      src={src}
       alt={aura.name}
       loading={priority ? "eager" : "lazy"}
       decoding="async"
