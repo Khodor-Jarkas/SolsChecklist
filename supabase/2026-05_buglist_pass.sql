@@ -137,11 +137,12 @@ update public.auras set image_url = 'https://static.wikia.nocookie.net/sol-rng/i
 update public.auras set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/7/7c/Oculus_collect.gif'          where name = 'Oculus';
 
 -- ============================================================================
--- Rarity rename: common → basic.
--- If `rarity` is a PostgreSQL enum, add the new values first:
---   alter type rarity add value if not exists 'basic';
---   alter type rarity add value if not exists 'dimensional';
+-- Rarity rename: common → basic + new Dimensional tier.
+-- Must extend the enum before updating rows.
 -- ============================================================================
+alter type rarity add value if not exists 'basic';
+alter type rarity add value if not exists 'dimensional';
+
 update public.auras set rarity = 'basic'
  where rarity = 'common';
 
