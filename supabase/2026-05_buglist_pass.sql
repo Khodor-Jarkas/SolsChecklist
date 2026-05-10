@@ -138,11 +138,19 @@ update public.auras set image_url = 'https://static.wikia.nocookie.net/sol-rng/i
 
 -- ============================================================================
 -- Rarity rename: common → basic + new Dimensional tier.
--- Must extend the enum before updating rows.
+--
+-- IMPORTANT: PostgreSQL requires enum additions to be committed before the
+-- new values can be used in DML. Run this file in TWO separate executions:
+--
+--   Step 1 — run only the two ALTER TYPE lines below, then commit/execute.
+--   Step 2 — run the rest of this file (the UPDATE statements).
 -- ============================================================================
+
+-- STEP 1: execute these two lines alone first.
 alter type rarity add value if not exists 'basic';
 alter type rarity add value if not exists 'dimensional';
 
+-- STEP 2: after step 1 has committed, execute these.
 update public.auras set rarity = 'basic'
  where rarity = 'common';
 
