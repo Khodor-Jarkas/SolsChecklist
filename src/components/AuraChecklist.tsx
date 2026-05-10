@@ -166,7 +166,9 @@ export function AuraChecklist({
       // Normal view: hide every event aura. Event view: hide every non-event aura.
       if (view === "events" && !a.event_name) return false;
       if (view === "rarity" && a.event_name) return false;
-      if (rarity !== "all" && a.rarity !== rarity) return false;
+      // Craft auras are always classified as "craftable" for filter purposes.
+      const effectiveRarity = a.obtainment === "craft" ? "craftable" : a.rarity;
+      if (rarity !== "all" && effectiveRarity !== rarity) return false;
       if (biome !== "all" && a.biome !== biome) return false;
       if (eventName !== "all" && a.event_name !== eventName) return false;
       if (
@@ -187,7 +189,7 @@ export function AuraChecklist({
     () => (a: Aura, b: Aura) => {
       if (sort === "name") return a.name.localeCompare(b.name);
       if (sort === "odds") return (b.rarity_odds ?? 0) - (a.rarity_odds ?? 0);
-      if (a.rarity === "craftable" && b.rarity === "craftable") {
+      if (a.obtainment === "craft" && b.obtainment === "craft") {
         return (CRAFTABLE_ORDER[a.name] ?? 999) - (CRAFTABLE_ORDER[b.name] ?? 999);
       }
       return (a.rarity_odds ?? 0) - (b.rarity_odds ?? 0);
@@ -195,11 +197,12 @@ export function AuraChecklist({
     [sort],
   );
 
-  // Group by rarity tier — sections. Within each, sort by `sort`.
+  // Group by rarity tier — sections. Craft auras always land in "craftable"
+  // regardless of their underlying rarity value.
   const sections = useMemo(() => {
     const byTier = new Map<Rarity, Aura[]>();
     for (const a of filtered) {
-      const t = a.rarity as Rarity;
+      const t = (a.obtainment === "craft" ? "craftable" : a.rarity) as Rarity;
       if (!byTier.has(t)) byTier.set(t, []);
       byTier.get(t)!.push(a);
     }

@@ -24,6 +24,9 @@ create index if not exists auras_secondary_obtainment_idx
 update public.auras set biome = 'Singularity'
  where name in ('Comet', 'Galaxy', 'Gargantua');
 
+update public.auras set native_biome_odds = 86000000
+ where name = 'Gargantua';
+
 -- ============================================================================
 -- Innovator: rename event tag to "RIA event" and clear the incorrect
 -- battle_pass classification — the headline aura was actually rollable.
@@ -132,4 +135,21 @@ update public.auras set image_url = 'https://static.wikia.nocookie.net/sol-rng/i
 update public.auras set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/3/3c/AstriosCollection.gif'       where name = 'Astraios';
 update public.auras set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/b/ba/Virtual_memory_collect.gif'  where name = 'Virtual Memory';
 update public.auras set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/7/7c/Oculus_collect.gif'          where name = 'Oculus';
+
+-- ============================================================================
+-- Rarity rename: common → basic.
+-- If `rarity` is a PostgreSQL enum, add the new values first:
+--   alter type rarity add value if not exists 'basic';
+--   alter type rarity add value if not exists 'dimensional';
+-- ============================================================================
+update public.auras set rarity = 'basic'
+ where rarity = 'common';
+
+-- MasterHand is the only Dimensional aura (craftable, odds > 7.5 B).
+update public.auras set rarity = 'dimensional'
+ where name = 'MasterHand';
+
+-- Gargantua: 1 in 86,000,000 inside Singularity.
+update public.auras set native_biome_odds = 86000000
+ where name = 'Gargantua';
 
