@@ -40,6 +40,10 @@ const EVENT_ORDER = [
   "Christmas",
   "Anniversary",
   "Admin Events",
+  "Oblivion Potion",
+  "Dune Potion",
+  "Red Moon Potion",
+  "Astrald event",
 ];
 
 function eventRank(name: string): number {
@@ -140,6 +144,8 @@ export function AuraChecklist({
     for (const a of auras) {
       if (!a.biome) continue;
       if (view === "rarity" && DEV_BIOME_NAMES.has(a.biome)) continue;
+      // Don't show event-aura biomes in the rarity view dropdown.
+      if (view === "rarity" && a.event_name) continue;
       // Events view: only include biomes that actually host event auras.
       if (view === "events" && !a.event_name) continue;
       set.add(a.biome);

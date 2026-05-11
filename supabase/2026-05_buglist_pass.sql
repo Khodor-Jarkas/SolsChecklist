@@ -162,3 +162,29 @@ update public.auras set rarity = 'dimensional'
 update public.auras set native_biome_odds = 86000000
  where name = 'Gargantua';
 
+-- ============================================================================
+-- Potion-triggered event biomes → events view.
+-- Auras whose biome is a potion name need event_name set so the checklist
+-- routes them to the Events tab instead of the Rarity tab.
+-- ============================================================================
+update public.auras set event_name = 'Oblivion Potion'
+ where biome = 'Oblivion Potion' and event_name is null;
+
+update public.auras set event_name = 'Dune Potion'
+ where biome = 'Dune Potion' and event_name is null;
+
+update public.auras set event_name = 'Red Moon Potion'
+ where biome = 'Red Moon Potion' and event_name is null;
+
+-- Halloween-biome auras (Pumpkin Moon / Graveyard / Blood Rain).
+update public.auras set event_name = 'Halloween'
+ where biome in ('Pumpkin Moon', 'Graveyard', 'Blood Rain') and event_name is null;
+
+-- Summer-biome aura (Blazing Sun).
+update public.auras set event_name = 'Summer'
+ where biome = 'Blazing Sun' and event_name is null;
+
+-- Astrald event auras.
+update public.auras set event_name = 'Astrald event'
+ where event_name = 'Astrald event' or biome = 'Astrald event';
+

@@ -102,7 +102,7 @@ export const BIOMES: Biome[] = [
     spawnOdds: 7500,
     multiplier: "5× Breakthrough",
     duration: "650 seconds",
-    color: "#a4c8ff",
+    color: "#60a5fa",
     material: "Piece of Star",
   },
   {
@@ -122,7 +122,7 @@ export const BIOMES: Biome[] = [
     spawnOdds: 9000,
     multiplier: "5× Breakthrough",
     duration: "650 seconds",
-    color: "#9a7ac5",
+    color: "#7e22ce",
     material: "Curruptaine",
   },
   {
@@ -144,7 +144,7 @@ export const BIOMES: Biome[] = [
     spawnOdds: 30000,
     multiplier: "No multiplier",
     duration: "164 seconds",
-    color: "#bdf777",
+    color: "#4ade80",
     notes: "1 in 30,000 per biome change — not per second.",
   },
   {
@@ -174,7 +174,7 @@ export const BIOMES: Biome[] = [
     spawnOdds: null,
     multiplier: "TBA",
     duration: "Ends when any player rolls Astraios",
-    color: "#a855f7",
+    color: "#f97316",
     notes:
       "Spawned via the Singularity Catalyst or naturally. The biome ends immediately when a player rolls Astraios.",
   },
@@ -185,7 +185,7 @@ export const BIOMES: Biome[] = [
     spawnOdds: null,
     multiplier: "Special",
     duration: "Until exit",
-    color: "#7c3aed",
+    color: "#ffffff",
     notes: "A separate dimension reached via the Portable Crack item.",
   },
 
@@ -219,6 +219,44 @@ export const BIOMES: Biome[] = [
     duration: "Potion-triggered",
     color: "#ef4444",
     notes: "Triggered by the Red Moon Potion item.",
+  },
+
+  // ---------- Event-only biomes (auras have event_name set) ----------
+  {
+    name: "Pumpkin Moon",
+    displayName: "Pumpkin Moon",
+    category: "rare",
+    spawnOdds: null,
+    multiplier: "Special",
+    duration: "Event-triggered",
+    color: "#ea580c",
+  },
+  {
+    name: "Graveyard",
+    displayName: "Graveyard",
+    category: "rare",
+    spawnOdds: null,
+    multiplier: "Special",
+    duration: "Event-triggered",
+    color: "#78716c",
+  },
+  {
+    name: "Blood Rain",
+    displayName: "Blood Rain",
+    category: "rare",
+    spawnOdds: null,
+    multiplier: "Special",
+    duration: "Event-triggered",
+    color: "#991b1b",
+  },
+  {
+    name: "Blazing Sun",
+    displayName: "Blazing Sun",
+    category: "rare",
+    spawnOdds: null,
+    multiplier: "Special",
+    duration: "Event-triggered",
+    color: "#f59e0b",
   },
 
   // ---------- Developer / Admin Abuse Biomes ----------
