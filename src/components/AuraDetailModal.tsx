@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { RARITY_CLASS, RARITY_LABEL, OBTAINMENT_LABEL, formatOdds } from "@/lib/rarity";
 import type { Obtainment, Rarity } from "@/lib/supabase/types";
+import { biomeByName } from "@/lib/biomes";
 
 // Rarities where showing "rolled N×" is meaningful.
 export const COUNTER_RARITIES = new Set<Rarity>([
@@ -152,7 +153,12 @@ export function AuraDetailModal({
               {aura.biome && (
                 <div className="flex gap-2">
                   <dt className="text-[var(--foreground-muted)] w-20 shrink-0">Biome</dt>
-                  <dd className={isLimbo ? "text-violet-300 font-semibold" : ""}>{aura.biome}</dd>
+                  <dd
+                    className={isLimbo ? "font-semibold" : ""}
+                    style={{ color: biomeByName(aura.biome)?.color }}
+                  >
+                    {aura.biome}
+                  </dd>
                 </div>
               )}
               {aura.event_name && (

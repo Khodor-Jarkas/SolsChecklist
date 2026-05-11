@@ -189,6 +189,38 @@ export const BIOMES: Biome[] = [
     notes: "A separate dimension reached via the Portable Crack item.",
   },
 
+  // ---------- Potion-triggered events ----------
+  {
+    name: "Oblivion Potion",
+    displayName: "Oblivion Potion",
+    category: "rare",
+    spawnOdds: null,
+    multiplier: "Special",
+    duration: "Potion-triggered",
+    color: "#6b21a8",
+    notes: "Triggered by the Oblivion Potion item.",
+  },
+  {
+    name: "Dune Potion",
+    displayName: "Dune Potion",
+    category: "rare",
+    spawnOdds: null,
+    multiplier: "Special",
+    duration: "Potion-triggered",
+    color: "#d97706",
+    notes: "Triggered by the Dune Potion item.",
+  },
+  {
+    name: "Red Moon Potion",
+    displayName: "Red Moon Potion",
+    category: "rare",
+    spawnOdds: null,
+    multiplier: "Special",
+    duration: "Potion-triggered",
+    color: "#ef4444",
+    notes: "Triggered by the Red Moon Potion item.",
+  },
+
   // ---------- Developer / Admin Abuse Biomes ----------
   {
     name: "The Citadel Of Orders",

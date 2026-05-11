@@ -11,7 +11,7 @@ import {
   formatOdds,
 } from "@/lib/rarity";
 import type { Database, Obtainment, Rarity } from "@/lib/supabase/types";
-import { BIOMES } from "@/lib/biomes";
+import { BIOMES, biomeByName } from "@/lib/biomes";
 import { AuraDetailModal, ObtainmentBadge, COUNTER_RARITIES } from "@/components/AuraDetailModal";
 
 // Dev / admin-spawn biomes are surfaced via the events view ("Admin Events"),
@@ -655,11 +655,8 @@ function AuraGrid({
                   {a.biome && (
                     <div>
                       <span
-                        className={
-                          isLimbo
-                            ? "text-violet-300 font-semibold tracking-wide"
-                            : "text-[var(--foreground-muted)]"
-                        }
+                        className={isLimbo ? "font-semibold tracking-wide" : ""}
+                        style={{ color: biomeByName(a.biome)?.color ?? "var(--foreground-muted)" }}
                       >
                         {a.biome}
                       </span>
