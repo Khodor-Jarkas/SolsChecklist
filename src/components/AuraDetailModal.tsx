@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { RARITY_CLASS, RARITY_LABEL, OBTAINMENT_LABEL, formatOdds } from "@/lib/rarity";
 import type { Obtainment, Rarity } from "@/lib/supabase/types";
-import { biomeByName } from "@/lib/biomes";
+import { biomeByName, potionColorFromText } from "@/lib/biomes";
 
 // Rarities where showing "rolled N×" is meaningful.
 export const COUNTER_RARITIES = new Set<Rarity>([
@@ -178,11 +178,7 @@ export function AuraDetailModal({
             {aura.description && (
               <p
                 className="text-sm leading-relaxed"
-                style={{
-                  color: aura.biome?.includes("Potion")
-                    ? biomeByName(aura.biome)?.color ?? "var(--foreground-muted)"
-                    : "var(--foreground-muted)",
-                }}
+                style={{ color: potionColorFromText(aura.description) ?? "var(--foreground-muted)" }}
               >
                 {aura.description}
               </p>

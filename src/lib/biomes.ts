@@ -303,3 +303,22 @@ export function biomeByName(name: string | null | undefined): Biome | undefined 
   if (!name) return undefined;
   return BIOMES.find((b) => b.name === name);
 }
+
+// Maps lowercase substrings that can appear in aura descriptions to the
+// canonical biome name in BIOMES. Handles variant phrasings like
+// "Potion of the Dune" vs "Dune Potion".
+const POTION_DESC_MAP: [string, string][] = [
+  ["red moon potion",    "Red Moon Potion"],
+  ["oblivion potion",    "Oblivion Potion"],
+  ["dune potion",        "Dune Potion"],
+  ["potion of the dune", "Dune Potion"],
+];
+
+export function potionColorFromText(text: string | null | undefined): string | undefined {
+  if (!text) return undefined;
+  const lower = text.toLowerCase();
+  for (const [needle, biomeName] of POTION_DESC_MAP) {
+    if (lower.includes(needle)) return biomeByName(biomeName)?.color;
+  }
+  return undefined;
+}
