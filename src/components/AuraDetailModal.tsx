@@ -176,7 +176,16 @@ export function AuraDetailModal({
             )}
 
             {aura.description && (
-              <p className="text-sm text-[var(--foreground-muted)] leading-relaxed">{aura.description}</p>
+              <p
+                className="text-sm leading-relaxed"
+                style={{
+                  color: aura.biome?.includes("Potion")
+                    ? biomeByName(aura.biome)?.color ?? "var(--foreground-muted)"
+                    : "var(--foreground-muted)",
+                }}
+              >
+                {aura.description}
+              </p>
             )}
           </div>
         </div>

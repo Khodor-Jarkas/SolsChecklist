@@ -696,7 +696,14 @@ function AuraGrid({
                 })()}
 
                 {a.description && (
-                  <p className="text-xs text-[var(--foreground-muted)] mt-2 line-clamp-2 leading-relaxed">
+                  <p
+                    className="text-xs mt-2 line-clamp-2 leading-relaxed"
+                    style={{
+                      color: a.biome?.includes("Potion")
+                        ? biomeByName(a.biome)?.color ?? "var(--foreground-muted)"
+                        : "var(--foreground-muted)",
+                    }}
+                  >
                     {a.description}
                   </p>
                 )}
