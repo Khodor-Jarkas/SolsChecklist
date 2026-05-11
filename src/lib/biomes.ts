@@ -207,7 +207,7 @@ export const BIOMES: Biome[] = [
     spawnOdds: null,
     multiplier: "Special",
     duration: "Potion-triggered",
-    color: "#d97706",
+    color: "#d4aa70",
     notes: "Triggered by the Dune Potion item.",
   },
   {
@@ -314,11 +314,22 @@ const POTION_DESC_MAP: [string, string][] = [
   ["potion of the dune", "Dune Potion"],
 ];
 
-export function potionColorFromText(text: string | null | undefined): string | undefined {
-  if (!text) return undefined;
+export function potionHighlightParts(
+  text: string | null | undefined,
+): { before: string; match: string; after: string; color: string } | null {
+  if (!text) return null;
   const lower = text.toLowerCase();
   for (const [needle, biomeName] of POTION_DESC_MAP) {
-    if (lower.includes(needle)) return biomeByName(biomeName)?.color;
+    const idx = lower.indexOf(needle);
+    if (idx === -1) continue;
+    const color = biomeByName(biomeName)?.color;
+    if (!color) continue;
+    return {
+      before: text.slice(0, idx),
+      match:  text.slice(idx, idx + needle.length),
+      after:  text.slice(idx + needle.length),
+      color,
+    };
   }
-  return undefined;
+  return null;
 }

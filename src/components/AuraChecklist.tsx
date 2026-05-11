@@ -11,7 +11,7 @@ import {
   formatOdds,
 } from "@/lib/rarity";
 import type { Database, Obtainment, Rarity } from "@/lib/supabase/types";
-import { BIOMES, biomeByName, potionColorFromText } from "@/lib/biomes";
+import { BIOMES, biomeByName, potionHighlightParts } from "@/lib/biomes";
 import { AuraDetailModal, ObtainmentBadge, COUNTER_RARITIES } from "@/components/AuraDetailModal";
 
 // Dev / admin-spawn biomes are surfaced via the events view ("Admin Events"),
@@ -695,14 +695,16 @@ function AuraGrid({
                   );
                 })()}
 
-                {a.description && (
-                  <p
-                    className="text-xs mt-2 line-clamp-2 leading-relaxed"
-                    style={{ color: potionColorFromText(a.description) ?? "var(--foreground-muted)" }}
-                  >
-                    {a.description}
-                  </p>
-                )}
+                {a.description && (() => {
+                  const parts = potionHighlightParts(a.description);
+                  return (
+                    <p className="text-xs text-[var(--foreground-muted)] mt-2 line-clamp-2 leading-relaxed">
+                      {parts ? (
+                        <>{parts.before}<span style={{ color: parts.color }}>{parts.match}</span>{parts.after}</>
+                      ) : a.description}
+                    </p>
+                  );
+                })()}
 
                 {has && showCounter && (
                   <div className="mt-3 flex items-center gap-2 pt-3 border-t border-[var(--border)]">
