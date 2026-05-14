@@ -39,14 +39,16 @@ export async function loadProfileData(
   const catalogByRarityEvent  = new Map<Rarity, number>();
   let normalTotal = 0;
   let eventTotal = 0;
+  const incMap = (m: Map<Rarity, number>, r: Rarity) => m.set(r, (m.get(r) ?? 0) + 1);
   for (const a of allAuras ?? []) {
-    // Mirror the checklist: craft auras bucket under 'craftable' regardless of their rarity field.
-    const effectiveRarity = (a.obtainment === "craft" ? "craftable" : a.rarity) as Rarity;
+    const isCraft = a.obtainment === "craft";
     if (a.event_name) {
-      if (a.obtainment !== "craft") catalogByRarityEvent.set(effectiveRarity, (catalogByRarityEvent.get(effectiveRarity) ?? 0) + 1);
+      if (!isCraft) incMap(catalogByRarityEvent, a.rarity);
       eventTotal++;
     } else {
-      catalogByRarityNormal.set(effectiveRarity, (catalogByRarityNormal.get(effectiveRarity) ?? 0) + 1);
+      incMap(catalogByRarityNormal, a.rarity);
+      // Craft auras also appear in the Crafting row (unless already 'craftable').
+      if (isCraft && a.rarity !== "craftable") incMap(catalogByRarityNormal, "craftable");
       normalTotal++;
     }
   }
@@ -68,12 +70,12 @@ export async function loadProfileData(
     const joined = Array.isArray(j) ? j[0] : j;
     if (!joined) continue;
     const isCraft = joined.obtainment === "craft";
-    const effectiveRarity = (isCraft ? "craftable" : joined.rarity) as Rarity;
     if (joined.event_name) {
-      if (!isCraft) byRarityEvent.set(effectiveRarity, (byRarityEvent.get(effectiveRarity) ?? 0) + 1);
+      if (!isCraft) incMap(byRarityEvent, joined.rarity);
       eventOwned++;
     } else {
-      byRarityNormal.set(effectiveRarity, (byRarityNormal.get(effectiveRarity) ?? 0) + 1);
+      incMap(byRarityNormal, joined.rarity);
+      if (isCraft && joined.rarity !== "craftable") incMap(byRarityNormal, "craftable");
       normalOwned++;
       // Collected stats: sum of rarity_odds for unique normal auras.
       // Event auras excluded. Set rarity_odds on craft auras in Supabase
