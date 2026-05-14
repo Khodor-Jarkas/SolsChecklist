@@ -72,11 +72,11 @@ export async function loadProfileData(
     } else {
       if (!isCraft) byRarityNormal.set(joined.rarity, (byRarityNormal.get(joined.rarity) ?? 0) + 1);
       normalOwned++;
+      // Collected stats: sum of rarity_odds for unique normal auras (incl. craft).
+      // Event auras excluded. Craft auras have rarity_odds=null so contribute 0.
+      // Always rarity_odds — never native_biome_odds.
+      if (joined.rarity_odds) collectedStats += joined.rarity_odds;
     }
-    // Collected stats: sum of rarity_odds for all unique auras (normal + event).
-    // Craft auras have no rarity_odds so they naturally contribute 0.
-    // Always use rarity_odds, never native_biome_odds.
-    if (joined.rarity_odds) collectedStats += joined.rarity_odds;
     ownedAuras.push({ count: row.count, first_obtained_at: row.first_obtained_at, aura: joined });
   }
 
