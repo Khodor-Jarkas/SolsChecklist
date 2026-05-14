@@ -44,7 +44,7 @@ export async function loadProfileData(
       if (a.obtainment !== "craft") catalogByRarityEvent.set(a.rarity, (catalogByRarityEvent.get(a.rarity) ?? 0) + 1);
       eventTotal++;
     } else {
-      if (a.obtainment !== "craft") catalogByRarityNormal.set(a.rarity, (catalogByRarityNormal.get(a.rarity) ?? 0) + 1);
+      catalogByRarityNormal.set(a.rarity, (catalogByRarityNormal.get(a.rarity) ?? 0) + 1);
       normalTotal++;
     }
   }
@@ -70,7 +70,7 @@ export async function loadProfileData(
       if (!isCraft) byRarityEvent.set(joined.rarity, (byRarityEvent.get(joined.rarity) ?? 0) + 1);
       eventOwned++;
     } else {
-      if (!isCraft) byRarityNormal.set(joined.rarity, (byRarityNormal.get(joined.rarity) ?? 0) + 1);
+      byRarityNormal.set(joined.rarity, (byRarityNormal.get(joined.rarity) ?? 0) + 1);
       normalOwned++;
       // Collected stats: sum of rarity_odds for unique normal auras (incl. craft).
       // Event auras excluded. Craft auras have rarity_odds=null so contribute 0.
