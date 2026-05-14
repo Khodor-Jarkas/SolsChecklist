@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { RARITY_CLASS, RARITY_LABEL, RARITY_ORDER, formatOdds } from "@/lib/rarity";
 import type { Rarity } from "@/lib/supabase/types";
 import { PrivacyToggle } from "./PrivacyToggle";
 import { ProfileAuraGrid } from "./ProfileAuraGrid";
+import { RarityBreakdown } from "./RarityBreakdown";
 
 type Profile = {
   id: string;
@@ -24,8 +24,11 @@ export type ProfileStats = {
   normalOwned: number;
   eventTotal: number;
   eventOwned: number;
-  byRarity: Map<Rarity, number>;
-  catalogByRarity: Map<Rarity, number>;
+  byRarityNormal: Map<Rarity, number>;
+  byRarityEvent: Map<Rarity, number>;
+  catalogByRarityNormal: Map<Rarity, number>;
+  catalogByRarityEvent: Map<Rarity, number>;
+  collectedStats: number;
 };
 
 export type OwnedAuraItem = {
@@ -203,32 +206,21 @@ export function ProfileView({
           />
         </div>
 
-        <div className="space-y-3 pt-2 border-t border-[var(--border)]">
-          <h3 className="text-xs uppercase tracking-wider text-[var(--foreground-muted)] pt-4">By rarity</h3>
-          {RARITY_ORDER.map((r) => {
-            const owned = stats.byRarity.get(r) ?? 0;
-            const tierTotal = stats.catalogByRarity.get(r) ?? 0;
-            if (tierTotal === 0) return null;
-            const hasAny = owned > 0;
-            const tierPct = pct(owned, tierTotal);
-            return (
-              <div key={r} className="flex items-center gap-3">
-                <span className={`w-28 text-sm text-rarity-${r} font-medium`}>
-                  {RARITY_LABEL[r]}
-                </span>
-                <div className="flex-1 h-2 rounded-full bg-[var(--surface)] overflow-hidden">
-                  <div
-                    className={`h-full rounded-full bg-rarity-${r} transition-all duration-500`}
-                    style={{ width: `${tierPct}%` }}
-                  />
-                </div>
-                <span className={`text-sm font-mono tabular-nums w-16 text-right ${hasAny ? "text-[var(--foreground)]" : "text-[var(--foreground-faint)]"}`}>
-                  {owned} / {tierTotal}
-                </span>
-              </div>
-            );
-          })}
+        <div className="flex items-center justify-between px-1 py-2.5 rounded-lg bg-[var(--surface)]">
+          <span className="text-xs text-[var(--foreground-muted)] uppercase tracking-wider">
+            Collected stats
+          </span>
+          <span className="text-sm font-semibold font-mono tabular-nums">
+            {stats.collectedStats.toLocaleString()}
+          </span>
         </div>
+
+        <RarityBreakdown
+          byRarityNormal={Object.fromEntries(stats.byRarityNormal)}
+          byRarityEvent={Object.fromEntries(stats.byRarityEvent)}
+          catalogByRarityNormal={Object.fromEntries(stats.catalogByRarityNormal)}
+          catalogByRarityEvent={Object.fromEntries(stats.catalogByRarityEvent)}
+        />
       </div>
 
       {/* Owned auras (compact grid, rarest first) */}

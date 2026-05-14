@@ -35,19 +35,26 @@ export async function loadProfileData(
   const achTotal = totalAchievements ?? 0;
   const itemTotal = totalItems ?? 0;
 
-  const catalogByRarity = new Map<Rarity, number>();
+  const catalogByRarityNormal = new Map<Rarity, number>();
+  const catalogByRarityEvent  = new Map<Rarity, number>();
   let normalTotal = 0;
   let eventTotal = 0;
   for (const a of allAuras ?? []) {
-    catalogByRarity.set(a.rarity, (catalogByRarity.get(a.rarity) ?? 0) + 1);
-    if (a.event_name) eventTotal++;
-    else normalTotal++;
+    if (a.event_name) {
+      catalogByRarityEvent.set(a.rarity, (catalogByRarityEvent.get(a.rarity) ?? 0) + 1);
+      eventTotal++;
+    } else {
+      catalogByRarityNormal.set(a.rarity, (catalogByRarityNormal.get(a.rarity) ?? 0) + 1);
+      normalTotal++;
+    }
   }
 
-  const byRarity = new Map<Rarity, number>();
+  const byRarityNormal = new Map<Rarity, number>();
+  const byRarityEvent  = new Map<Rarity, number>();
   let totalRolls = 0;
   let normalOwned = 0;
   let eventOwned = 0;
+  let collectedStats = 0;
 
   type AuraJoin = { id: number; name: string; rarity: Rarity; rarity_odds: number | null; native_biome_odds: number | null; biome: string | null; event_name: string | null; event_year: number | null; description: string | null; obtainment: string | null; secondary_obtainment: string | null; image_url: string | null };
   type OwnedAura = { count: number; first_obtained_at: string; aura: AuraJoin };
@@ -58,9 +65,15 @@ export async function loadProfileData(
     const j = row.auras as AuraJoin | AuraJoin[] | null;
     const joined = Array.isArray(j) ? j[0] : j;
     if (!joined) continue;
-    byRarity.set(joined.rarity, (byRarity.get(joined.rarity) ?? 0) + 1);
-    if (joined.event_name) eventOwned++;
-    else normalOwned++;
+    if (joined.event_name) {
+      byRarityEvent.set(joined.rarity, (byRarityEvent.get(joined.rarity) ?? 0) + 1);
+      eventOwned++;
+    } else {
+      byRarityNormal.set(joined.rarity, (byRarityNormal.get(joined.rarity) ?? 0) + 1);
+      normalOwned++;
+      // Collected stats = sum of rarity_odds for unique normal auras (no dupes, no events).
+      if (joined.rarity_odds) collectedStats += joined.rarity_odds;
+    }
     ownedAuras.push({ count: row.count, first_obtained_at: row.first_obtained_at, aura: joined });
   }
 
@@ -88,8 +101,11 @@ export async function loadProfileData(
       normalOwned,
       eventTotal,
       eventOwned,
-      byRarity,
-      catalogByRarity,
+      byRarityNormal,
+      byRarityEvent,
+      catalogByRarityNormal,
+      catalogByRarityEvent,
+      collectedStats,
     },
     ownedAuras,
     ownedAchievements,
