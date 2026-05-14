@@ -1,3 +1,6 @@
+// NOTE: Collected stats intentionally excludes event auras — only normal
+// (non-event) aura rarity_odds are summed. The in-game total may differ
+// if event auras or auras with missing/incorrect rarity_odds are present.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Rarity } from "./supabase/types";
 import type { ProfileData } from "@/components/ProfileView";
