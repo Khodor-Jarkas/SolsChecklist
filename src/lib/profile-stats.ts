@@ -75,10 +75,11 @@ export async function loadProfileData(
     } else {
       byRarityNormal.set(effectiveRarity, (byRarityNormal.get(effectiveRarity) ?? 0) + 1);
       normalOwned++;
-      // Collected stats: sum of rarity_odds for unique normal auras (incl. craft).
-      // Event auras excluded. Craft auras have rarity_odds=null so contribute 0.
-      // Always rarity_odds — never native_biome_odds.
+      // Collected stats: sum of rarity_odds for unique normal auras.
+      // Event auras excluded. Craft auras have rarity_odds=null except
+      // Cell Asteroides which grants a fixed 5,000,000 in-game.
       if (joined.rarity_odds) collectedStats += joined.rarity_odds;
+      if (joined.name === "Cell Asteroides") collectedStats += 5_000_000;
     }
     ownedAuras.push({ count: row.count, first_obtained_at: row.first_obtained_at, aura: joined });
   }
