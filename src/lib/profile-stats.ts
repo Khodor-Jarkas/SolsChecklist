@@ -14,7 +14,7 @@ export async function loadProfileData(
     { data: ownedAchievementRows },
     { count: ownedItemsCount },
   ] = await Promise.all([
-    supabase.from("auras").select("rarity, event_name"),
+    supabase.from("auras").select("rarity, event_name, obtainment"),
     supabase.from("achievements").select("*", { count: "exact", head: true }),
     supabase.from("items").select("*", { count: "exact", head: true }),
     supabase
@@ -41,10 +41,10 @@ export async function loadProfileData(
   let eventTotal = 0;
   for (const a of allAuras ?? []) {
     if (a.event_name) {
-      catalogByRarityEvent.set(a.rarity, (catalogByRarityEvent.get(a.rarity) ?? 0) + 1);
+      if (a.obtainment !== "craft") catalogByRarityEvent.set(a.rarity, (catalogByRarityEvent.get(a.rarity) ?? 0) + 1);
       eventTotal++;
     } else {
-      catalogByRarityNormal.set(a.rarity, (catalogByRarityNormal.get(a.rarity) ?? 0) + 1);
+      if (a.obtainment !== "craft") catalogByRarityNormal.set(a.rarity, (catalogByRarityNormal.get(a.rarity) ?? 0) + 1);
       normalTotal++;
     }
   }
@@ -65,15 +65,18 @@ export async function loadProfileData(
     const j = row.auras as AuraJoin | AuraJoin[] | null;
     const joined = Array.isArray(j) ? j[0] : j;
     if (!joined) continue;
+    const isCraft = joined.obtainment === "craft";
     if (joined.event_name) {
-      byRarityEvent.set(joined.rarity, (byRarityEvent.get(joined.rarity) ?? 0) + 1);
+      if (!isCraft) byRarityEvent.set(joined.rarity, (byRarityEvent.get(joined.rarity) ?? 0) + 1);
       eventOwned++;
     } else {
-      byRarityNormal.set(joined.rarity, (byRarityNormal.get(joined.rarity) ?? 0) + 1);
+      if (!isCraft) byRarityNormal.set(joined.rarity, (byRarityNormal.get(joined.rarity) ?? 0) + 1);
       normalOwned++;
-      // Collected stats = sum of rarity_odds for unique normal auras (no dupes, no events).
-      if (joined.rarity_odds) collectedStats += joined.rarity_odds;
     }
+    // Collected stats: sum of rarity_odds for all unique auras (normal + event).
+    // Craft auras have no rarity_odds so they naturally contribute 0.
+    // Always use rarity_odds, never native_biome_odds.
+    if (joined.rarity_odds) collectedStats += joined.rarity_odds;
     ownedAuras.push({ count: row.count, first_obtained_at: row.first_obtained_at, aura: joined });
   }
 

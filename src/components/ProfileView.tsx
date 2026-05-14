@@ -206,13 +206,18 @@ export function ProfileView({
           />
         </div>
 
-        <div className="flex items-center justify-between px-1 py-2.5 rounded-lg bg-[var(--surface)]">
-          <span className="text-xs text-[var(--foreground-muted)] uppercase tracking-wider">
-            Collected stats
-          </span>
-          <span className="text-sm font-semibold font-mono tabular-nums">
-            {stats.collectedStats.toLocaleString()}
-          </span>
+        <div className="flex items-center gap-4 p-4 rounded-xl border border-[var(--border)] bg-gradient-to-r from-purple-500/5 to-pink-500/5">
+          <div className="h-9 w-9 shrink-0 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+              <path d="M12 2l2.4 7.4h7.6l-6.2 4.5 2.4 7.4-6.2-4.5-6.2 4.5 2.4-7.4L2 9.4h7.6z" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-xs text-[var(--foreground-muted)] uppercase tracking-wider">Collected stats</p>
+            <p className="text-xl font-bold tabular-nums bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+              {stats.collectedStats.toLocaleString()}
+            </p>
+          </div>
         </div>
 
         <RarityBreakdown
