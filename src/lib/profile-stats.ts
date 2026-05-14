@@ -77,11 +77,9 @@ export async function loadProfileData(
       incMap(byRarityNormal, joined.rarity);
       if (isCraft && joined.rarity !== "craftable") incMap(byRarityNormal, "craftable");
       normalOwned++;
+      // Collected stats: normal auras only, no events.
+      if (joined.rarity_odds) collectedStats += joined.rarity_odds;
     }
-    // Collected stats: sum of rarity_odds for ALL unique owned auras (normal + event).
-    // The game counts both. Craft auras with rarity_odds set (e.g. Cell Asteroides)
-    // contribute their value; others contribute 0.
-    if (joined.rarity_odds) collectedStats += joined.rarity_odds;
     ownedAuras.push({ count: row.count, first_obtained_at: row.first_obtained_at, aura: joined });
   }
 
