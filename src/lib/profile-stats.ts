@@ -40,11 +40,13 @@ export async function loadProfileData(
   let normalTotal = 0;
   let eventTotal = 0;
   for (const a of allAuras ?? []) {
+    // Mirror the checklist: craft auras bucket under 'craftable' regardless of their rarity field.
+    const effectiveRarity = (a.obtainment === "craft" ? "craftable" : a.rarity) as Rarity;
     if (a.event_name) {
-      if (a.obtainment !== "craft") catalogByRarityEvent.set(a.rarity, (catalogByRarityEvent.get(a.rarity) ?? 0) + 1);
+      if (a.obtainment !== "craft") catalogByRarityEvent.set(effectiveRarity, (catalogByRarityEvent.get(effectiveRarity) ?? 0) + 1);
       eventTotal++;
     } else {
-      catalogByRarityNormal.set(a.rarity, (catalogByRarityNormal.get(a.rarity) ?? 0) + 1);
+      catalogByRarityNormal.set(effectiveRarity, (catalogByRarityNormal.get(effectiveRarity) ?? 0) + 1);
       normalTotal++;
     }
   }
@@ -66,11 +68,12 @@ export async function loadProfileData(
     const joined = Array.isArray(j) ? j[0] : j;
     if (!joined) continue;
     const isCraft = joined.obtainment === "craft";
+    const effectiveRarity = (isCraft ? "craftable" : joined.rarity) as Rarity;
     if (joined.event_name) {
-      if (!isCraft) byRarityEvent.set(joined.rarity, (byRarityEvent.get(joined.rarity) ?? 0) + 1);
+      if (!isCraft) byRarityEvent.set(effectiveRarity, (byRarityEvent.get(effectiveRarity) ?? 0) + 1);
       eventOwned++;
     } else {
-      byRarityNormal.set(joined.rarity, (byRarityNormal.get(joined.rarity) ?? 0) + 1);
+      byRarityNormal.set(effectiveRarity, (byRarityNormal.get(effectiveRarity) ?? 0) + 1);
       normalOwned++;
       // Collected stats: sum of rarity_odds for unique normal auras (incl. craft).
       // Event auras excluded. Craft auras have rarity_odds=null so contribute 0.
