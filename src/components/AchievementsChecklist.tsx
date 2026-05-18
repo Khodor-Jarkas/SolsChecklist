@@ -74,13 +74,20 @@ export function AchievementsChecklist({
   }, [achievements, unlocked, filter, query]);
 
   const grouped = useMemo(() => {
+    const categoryOrder = Object.keys(CATEGORY_ACCENT);
     const map = new Map<string, Achievement[]>();
     for (const a of filtered) {
       const key = a.category ?? "Other";
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(a);
     }
-    return Array.from(map.entries());
+    return Array.from(map.entries()).sort(([a], [b]) => {
+      const ai = categoryOrder.indexOf(a);
+      const bi = categoryOrder.indexOf(b);
+      const aIdx = ai === -1 ? categoryOrder.length : ai;
+      const bIdx = bi === -1 ? categoryOrder.length : bi;
+      return aIdx - bIdx;
+    });
   }, [filtered]);
 
   const stats = useMemo(() => {
