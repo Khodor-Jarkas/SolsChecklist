@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { memo, useEffect, useMemo, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   RARITY_LABEL,
@@ -712,7 +712,7 @@ function AuraGrid({
                     <div className="flex items-center ml-auto gap-1">
                       <button
                         onClick={(e) => { e.stopPropagation(); incrementCount(a, -1); }}
-                        className="h-6 w-6 rounded-md border border-[var(--border)] hover:bg-[var(--card-hover)] text-sm leading-none disabled:opacity-40"
+                        className="h-8 w-8 rounded-md border border-[var(--border)] hover:bg-[var(--card-hover)] text-sm leading-none disabled:opacity-40 touch-manipulation"
                         disabled={state.count <= 1}
                         aria-label="Decrease count"
                       >
@@ -723,7 +723,7 @@ function AuraGrid({
                       </span>
                       <button
                         onClick={(e) => { e.stopPropagation(); incrementCount(a, 1); }}
-                        className="h-6 w-6 rounded-md border border-[var(--border)] hover:bg-[var(--card-hover)] text-sm leading-none"
+                        className="h-8 w-8 rounded-md border border-[var(--border)] hover:bg-[var(--card-hover)] text-sm leading-none touch-manipulation"
                         aria-label="Increase count"
                       >
                         +
@@ -740,7 +740,7 @@ function AuraGrid({
   );
 }
 
-function AuraThumb({
+const AuraThumb = memo(function AuraThumb({
   aura,
   rarity,
   owned,
@@ -781,7 +781,7 @@ function AuraThumb({
       className={classes}
     />
   );
-}
+});
 
 function ProgressBar({
   label,

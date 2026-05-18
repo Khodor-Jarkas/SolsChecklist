@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { RARITY_CLASS, RARITY_LABEL, formatOdds } from "@/lib/rarity";
 import type { Rarity } from "@/lib/supabase/types";
 import { AuraDetailModal } from "@/components/AuraDetailModal";
@@ -12,8 +12,9 @@ type Selected = { aura: ModalAura; ownedState: { count: number; first_obtained_a
 export function ProfileAuraGrid({ ownedAuras }: { ownedAuras: OwnedAuraItem[] }) {
   const [selected, setSelected] = useState<Selected | null>(null);
 
-  const sorted = [...ownedAuras].sort(
-    (a, b) => (b.aura.rarity_odds ?? 0) - (a.aura.rarity_odds ?? 0),
+  const sorted = useMemo(
+    () => [...ownedAuras].sort((a, b) => (b.aura.rarity_odds ?? 0) - (a.aura.rarity_odds ?? 0)),
+    [ownedAuras],
   );
 
   return (

@@ -145,6 +145,10 @@ h1, h2, h3, h4 {
   border: 1px solid transparent;
   user-select: none;
 }
+.btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -169,6 +173,7 @@ h1, h2, h3, h4 {
 .btn-sm {
   padding: 0.25rem 0.625rem;
   font-size: 0.75rem;
+  min-height: 2rem;
 }
 
 .input {
@@ -215,6 +220,10 @@ h1, h2, h3, h4 {
   transition: all 0.15s ease;
   cursor: pointer;
   background: var(--surface);
+}
+.checkbox:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 .checkbox:hover {
   border-color: var(--accent);

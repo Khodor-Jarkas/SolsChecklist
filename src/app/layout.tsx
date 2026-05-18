@@ -44,7 +44,9 @@ export default async function RootLayout({
             </Link>
             <nav className="flex items-center gap-1 text-sm">
               <NavLink href="/auras">Auras</NavLink>
-              <NavLink href="/biomes">Biomes</NavLink>
+              <span className="hidden sm:contents">
+                <NavLink href="/biomes">Biomes</NavLink>
+              </span>
               <NavLink href="/achievements">Achievements</NavLink>
               {user && <NavLink href="/profile">Profile</NavLink>}
               <div className="hidden md:block ml-2">
@@ -74,7 +76,7 @@ export default async function RootLayout({
             </nav>
           </div>
         </header>
-        <main className="mx-auto max-w-6xl px-4 py-10">{children}</main>
+        <main className="mx-auto max-w-6xl px-4 py-6 md:py-10">{children}</main>
       </body>
     </html>
   );

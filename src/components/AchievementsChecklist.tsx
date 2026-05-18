@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { memo, useEffect, useMemo, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/types";
 
@@ -208,7 +208,7 @@ export function AchievementsChecklist({
   );
 }
 
-function AchievementCard({
+const AchievementCard = memo(function AchievementCard({
   achievement: a,
   unlockedAt,
   pop,
@@ -281,7 +281,7 @@ function AchievementCard({
       </div>
     </li>
   );
-}
+});
 
 function AchievementIcon({ imageUrl, name }: { imageUrl: string | null; name: string }) {
   const size = "h-14 w-14";
