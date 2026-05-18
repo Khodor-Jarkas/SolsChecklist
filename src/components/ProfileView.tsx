@@ -414,29 +414,29 @@ function ProgressRing({ pct }: { pct: number }) {
   const offset = circumference - (pct / 100) * circumference;
 
   return (
-    <div className="relative" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
+    <div className="relative" style={{ width: size, height: size }} role="img" aria-label={`${pct}% overall progress`}>
+      <svg width={size} height={size} className="-rotate-90" aria-hidden>
+        <defs>
+          <linearGradient id="profileProgressGradient" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#a855f7" />
+            <stop offset="100%" stopColor="#ec4899" />
+          </linearGradient>
+        </defs>
         <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="var(--surface)" strokeWidth={stroke} />
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="url(#progressGradient)"
+          stroke="url(#profileProgressGradient)"
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
           className="transition-[stroke-dashoffset] duration-700 ease-out"
         />
-        <defs>
-          <linearGradient id="progressGradient" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#a855f7" />
-            <stop offset="100%" stopColor="#ec4899" />
-          </linearGradient>
-        </defs>
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
+      <div className="absolute inset-0 flex flex-col items-center justify-center" aria-hidden>
         <span className="text-xl font-semibold tabular-nums">{pct}%</span>
         <span className="text-[10px] text-[var(--foreground-faint)] uppercase tracking-wider">
           Overall

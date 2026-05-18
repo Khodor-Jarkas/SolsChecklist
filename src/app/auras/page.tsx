@@ -1,8 +1,15 @@
+import type { Metadata } from "next";
 import { createClient, getUser } from "@/lib/supabase/server";
 import { AuraChecklist } from "@/components/AuraChecklist";
 import { SignInBanner } from "@/components/SignInBanner";
 import { RARITY_ORDER } from "@/lib/rarity";
 import type { Rarity } from "@/lib/supabase/types";
+
+export const metadata: Metadata = {
+  title: "Auras",
+  description:
+    "Browse and track every aura in Sol's RNG — filter by rarity, biome, and obtainment. Mark what you've rolled and watch your collection grow.",
+};
 
 export default async function AurasPage() {
   const user = await getUser();
@@ -45,6 +52,7 @@ export default async function AurasPage() {
       <AuraChecklist
         auras={catalog}
         initialOwned={Object.fromEntries(ownedMap)}
+        userId={user?.id}
         readOnly={!user}
       />
     </section>

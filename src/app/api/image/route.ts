@@ -14,9 +14,19 @@ function isAllowed(raw: string): boolean {
   }
 }
 
+// Thumbnail (default): fits in the aura checklist grid and biome list cards.
+// Large: used by the detail modal on retina displays (176px CSS = 352px @2x).
+const SIZES = {
+  thumb: 150,
+  large: 320,
+} as const;
+
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get("url");
   if (!url || !isAllowed(url)) return new NextResponse(null, { status: 400 });
+
+  const sizeParam = req.nextUrl.searchParams.get("size");
+  const px = sizeParam === "large" ? SIZES.large : SIZES.thumb;
 
   try {
     const upstream = await fetch(url, {
@@ -26,7 +36,7 @@ export async function GET(req: NextRequest) {
     if (!upstream.ok) return new NextResponse(null, { status: 502 });
 
     const webp = await sharp(Buffer.from(await upstream.arrayBuffer()), { animated: true })
-      .resize(150, 150, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .resize(px, px, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .webp({ quality: 85 })
       .toBuffer();
 

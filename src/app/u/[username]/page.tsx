@@ -14,7 +14,7 @@ export default async function PublicProfilePage({
   const supabase = await createClient();
   const { data: profile } = await supabase
     .from("profiles")
-    .select("*")
+    .select("id, username, avatar_url, is_private, created_at")
     .eq("username", decoded)
     .single();
   if (!profile) notFound();

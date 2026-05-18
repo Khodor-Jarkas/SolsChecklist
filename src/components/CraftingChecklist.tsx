@@ -16,9 +16,11 @@ const KIND_ACCENT: Record<string, string> = {
 export function CraftingChecklist({
   items,
   initialOwned,
+  userId,
 }: {
   items: Item[];
   initialOwned: OwnedState;
+  userId?: string | null;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [owned, setOwned] = useState<OwnedState>(initialOwned);
@@ -34,6 +36,12 @@ export function CraftingChecklist({
     return Array.from(map.entries());
   }, [items]);
 
+  async function resolveUid(): Promise<string | null> {
+    if (userId) return userId;
+    const { data } = await supabase.auth.getUser();
+    return data.user?.id ?? null;
+  }
+
   async function setCount(item: Item, count: number) {
     const prev = owned;
     const next = { ...owned };
@@ -48,8 +56,7 @@ export function CraftingChecklist({
     setOwned(next);
 
     startTransition(async () => {
-      const { data: userData } = await supabase.auth.getUser();
-      const uid = userData.user?.id;
+      const uid = await resolveUid();
       if (!uid) return setOwned(prev);
 
       if (count <= 0) {

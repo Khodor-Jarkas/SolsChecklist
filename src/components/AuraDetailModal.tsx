@@ -120,7 +120,7 @@ export function AuraDetailModal({
             {aura.image_url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={aura.image_url}
+                src={`/api/image?url=${encodeURIComponent(aura.image_url)}&size=large`}
                 alt={aura.name}
                 className="max-w-full max-h-full object-contain"
               />
