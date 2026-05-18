@@ -13,10 +13,10 @@ export function BiomeAuraList({
   ownedIds,
 }: {
   auras: BiomeAura[];
-  ownedIds: number[];
+  ownedIds: Set<number>;
 }) {
   const [selected, setSelected] = useState<BiomeAura | null>(null);
-  const owned = new Set(ownedIds);
+  const owned = ownedIds;
 
   return (
     <>

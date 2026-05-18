@@ -22,6 +22,7 @@ export function UserSearch() {
     const q = query.trim();
     if (q.length < 2) {
       setHits([]);
+      setOpen(false);
       return;
     }
     let cancelled = false;

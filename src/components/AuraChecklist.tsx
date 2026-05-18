@@ -87,10 +87,12 @@ const CRAFTABLE_ORDER: Record<string, number> = {
 export function AuraChecklist({
   auras,
   initialOwned,
+  userId,
   readOnly = false,
 }: {
   auras: Aura[];
   initialOwned: OwnedState;
+  userId?: string | null;
   readOnly?: boolean;
 }) {
   const supabase = useMemo(() => createClient(), []);
@@ -274,6 +276,14 @@ export function AuraChecklist({
     };
   }, [owned, auras]);
 
+  // Resolve UID once: use the prop passed from the server, falling back to a
+  // live auth call only when not provided (e.g. direct component reuse).
+  async function resolveUid(): Promise<string | null> {
+    if (userId) return userId;
+    const { data } = await supabase.auth.getUser();
+    return data.user?.id ?? null;
+  }
+
   async function toggle(aura: Aura) {
     if (readOnly) return;
     const has = Boolean(owned[aura.id]);
@@ -289,8 +299,7 @@ export function AuraChecklist({
     }
 
     startTransition(async () => {
-      const { data: userData } = await supabase.auth.getUser();
-      const uid = userData.user?.id;
+      const uid = await resolveUid();
       if (!uid) return setOwned(prev);
 
       const { error } = has
@@ -314,8 +323,7 @@ export function AuraChecklist({
     setOwned({ ...owned, [aura.id]: { ...current, count: newCount } });
 
     startTransition(async () => {
-      const { data: userData } = await supabase.auth.getUser();
-      const uid = userData.user?.id;
+      const uid = await resolveUid();
       if (!uid) return setOwned(prev);
       const { error } = await supabase
         .from("user_auras")
@@ -341,21 +349,22 @@ export function AuraChecklist({
     for (const a of missing) next[a.id] = { count: 1, first_obtained_at: now };
     setOwned(next);
 
-    const { data: userData } = await supabase.auth.getUser();
-    const uid = userData.user?.id;
-    if (!uid) {
-      setOwned(prev);
-      setBulkPending(null);
-      return;
-    }
+    startTransition(async () => {
+      const uid = await resolveUid();
+      if (!uid) {
+        setOwned(prev);
+        setBulkPending(null);
+        return;
+      }
 
-    const rows = missing.map((a) => ({ user_id: uid, aura_id: a.id, count: 1 }));
-    const { error } = await supabase.from("user_auras").insert(rows);
-    if (error) {
-      setOwned(prev);
-      console.error(error);
-    }
-    setBulkPending(null);
+      const rows = missing.map((a) => ({ user_id: uid, aura_id: a.id, count: 1 }));
+      const { error } = await supabase.from("user_auras").insert(rows);
+      if (error) {
+        setOwned(prev);
+        console.error(error);
+      }
+      setBulkPending(null);
+    });
   }
 
   return (
@@ -406,12 +415,14 @@ export function AuraChecklist({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="input max-w-xs"
+          aria-label="Search auras"
         />
 
         <select
           value={rarity}
           onChange={(e) => setRarity(e.target.value as Rarity | "all")}
           className="input max-w-[10rem]"
+          aria-label="Filter by rarity"
         >
           <option value="all">All rarities</option>
           {RARITY_ORDER.map((r) => (
@@ -424,6 +435,7 @@ export function AuraChecklist({
             value={biome}
             onChange={(e) => setBiome(e.target.value)}
             className="input max-w-[10rem]"
+            aria-label="Filter by biome"
           >
             {biomes.map((b) => (
               <option key={b} value={b}>{b === "all" ? "All biomes" : b}</option>
@@ -436,6 +448,7 @@ export function AuraChecklist({
             value={eventName}
             onChange={(e) => setEventName(e.target.value)}
             className="input max-w-[12rem]"
+            aria-label="Filter by event"
           >
             {eventNames.map((e) => (
               <option key={e} value={e}>{e === "all" ? "All events" : e}</option>
@@ -447,6 +460,7 @@ export function AuraChecklist({
           value={obtainment}
           onChange={(e) => setObtainment(e.target.value as Obtainment | "all")}
           className="input max-w-[11rem]"
+          aria-label="Filter by obtainment method"
         >
           <option value="all">All sources</option>
           {OBTAINMENT_ORDER.map((o) => (
@@ -458,13 +472,14 @@ export function AuraChecklist({
           value={sort}
           onChange={(e) => setSort(e.target.value as Sort)}
           className="input max-w-[11rem]"
+          aria-label="Sort order"
         >
           <option value="rarity">Sort: easiest first</option>
           <option value="odds">Sort: rarest first</option>
           <option value="name">Sort: A–Z</option>
         </select>
 
-        <div className="flex items-center gap-1 ml-auto">
+        <div className="flex items-center gap-1 ml-auto" role="group" aria-label="Ownership filter">
           {(["all", "owned", "missing"] as const).map((f) => (
             <button
               key={f}
@@ -489,7 +504,7 @@ export function AuraChecklist({
             return (
               <section key={r} className="space-y-3">
                 <div className="flex items-center gap-3 flex-wrap">
-                  <div className={`h-1.5 w-8 rounded-full bg-rarity-${r}`} />
+                  <div className={`h-1.5 w-8 rounded-full bg-rarity-${r}`} aria-hidden />
                   <h2 className={`text-lg font-semibold ${rarityColor}`}>
                     {RARITY_LABEL[r]}
                   </h2>
@@ -630,18 +645,19 @@ function AuraGrid({
           >
             {/* Gothic cross-hatch overlay for Limbo cards — sits behind content */}
             {isLimbo && <div className="limbo-ornament" aria-hidden />}
-            <div className={`absolute left-0 top-0 bottom-0 w-1 bg-rarity-${r}`} />
+            <div className={`absolute left-0 top-0 bottom-0 w-1 bg-rarity-${r}`} aria-hidden />
 
             <div className="flex gap-3 pl-2">
               {!readOnly && (
                 <button
                   onClick={(e) => { e.stopPropagation(); toggle(a); }}
                   aria-label={has ? "Mark as missing" : "Mark as owned"}
+                  aria-pressed={has}
                   data-checked={has}
                   className={`checkbox mt-0.5 ${justToggled === a.id ? "animate-pop" : ""}`}
                 >
                   {has && (
-                    <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="3">
+                    <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden>
                       <path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   )}
@@ -761,6 +777,7 @@ const AuraThumb = memo(function AuraThumb({
     return (
       <div
         className={`${size} shrink-0 rounded-lg border-2 flex items-center justify-center text-3xl font-semibold text-rarity-${rarity} ${ring}`}
+        aria-hidden
       >
         {aura.name.replace(/[^A-Za-z★]/g, "").charAt(0).toUpperCase() || "?"}
       </div>
@@ -805,7 +822,7 @@ function ProgressBar({
           <span className="text-[var(--foreground-muted)] ml-2">({pct}%)</span>
         </span>
       </div>
-      <div className="h-2 rounded-full bg-[var(--surface)] overflow-hidden">
+      <div className="h-2 rounded-full bg-[var(--surface)] overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
         <div
           className={`h-full rounded-full bg-gradient-to-r ${gradient} transition-all duration-500`}
           style={{ width: `${pct}%` }}
@@ -818,7 +835,7 @@ function ProgressBar({
 function EmptyState() {
   return (
     <div className="card p-12 text-center space-y-2">
-      <div className="mx-auto h-12 w-12 rounded-full bg-[var(--card-hover)] flex items-center justify-center text-[var(--foreground-faint)]">
+      <div className="mx-auto h-12 w-12 rounded-full bg-[var(--card-hover)] flex items-center justify-center text-[var(--foreground-faint)]" aria-hidden>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-6 w-6">
           <circle cx="11" cy="11" r="8" />
           <path d="m21 21-4.3-4.3" strokeLinecap="round" />

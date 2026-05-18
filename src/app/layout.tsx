@@ -1,8 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
-import { createClient, getUser } from "@/lib/supabase/server";
+import { getUser, getUserProfile } from "@/lib/supabase/server";
 import { SignOutButton } from "@/components/SignOutButton";
 import { UserSearch } from "@/components/UserSearch";
 
@@ -12,26 +12,58 @@ const inter = Inter({
   display: "swap",
 });
 
+export const viewport: Viewport = {
+  themeColor: "#0a0a13",
+  width: "device-width",
+  initialScale: 1,
+};
+
 export const metadata: Metadata = {
-  title: "Sol's Checklist",
-  description: "Track your Sol's RNG progress — auras and achievements.",
+  title: {
+    default: "Sol's Checklist",
+    template: "%s — Sol's Checklist",
+  },
+  description:
+    "Track your Sol's RNG progress — auras, achievements, biomes, and collection stats. Free community tracker.",
+  keywords: [
+    "Sol's RNG",
+    "aura tracker",
+    "Roblox",
+    "checklist",
+    "auras",
+    "achievements",
+    "biomes",
+    "collection",
+  ],
+  authors: [{ name: "Sol's Checklist" }],
+  creator: "Sol's Checklist",
+  openGraph: {
+    title: "Sol's Checklist",
+    description:
+      "Track your Sol's RNG progress — auras, achievements, biomes, and collection stats.",
+    type: "website",
+    locale: "en_US",
+    siteName: "Sol's Checklist",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Sol's Checklist",
+    description:
+      "Track your Sol's RNG progress — auras, achievements, biomes, and collection stats.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
+  },
 };
 
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const user = await getUser();
-
-  let username: string | null = null;
-  if (user) {
-    const supabase = await createClient();
-    const { data } = await supabase
-      .from("profiles")
-      .select("username")
-      .eq("id", user.id)
-      .single();
-    username = data?.username ?? null;
-  }
+  const profile = user ? await getUserProfile(user.id) : null;
+  const username = profile?.username ?? null;
 
   return (
     <html lang="en" className={inter.variable}>
@@ -42,7 +74,7 @@ export default async function RootLayout({
               <span className="text-[var(--accent)]">Sol&apos;s</span>{" "}
               <span className="text-[var(--foreground)]">Checklist</span>
             </Link>
-            <nav className="flex items-center gap-1 text-sm">
+            <nav className="flex items-center gap-1 text-sm" aria-label="Main navigation">
               <NavLink href="/auras">Auras</NavLink>
               <span className="hidden sm:contents">
                 <NavLink href="/biomes">Biomes</NavLink>

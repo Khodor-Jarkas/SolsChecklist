@@ -27,10 +27,12 @@ type Filter = "all" | "unlocked" | "locked";
 export function AchievementsChecklist({
   achievements,
   initialUnlocked,
+  userId,
   readOnly = false,
 }: {
   achievements: Achievement[];
   initialUnlocked: UnlockedState;
+  userId?: string | null;
   readOnly?: boolean;
 }) {
   const supabase = useMemo(() => createClient(), []);
@@ -97,6 +99,14 @@ export function AchievementsChecklist({
     return { owned, total, pct };
   }, [unlocked, achievements]);
 
+  // Resolve UID once: use the prop passed from the server, falling back to a
+  // live auth call only when not provided (e.g. direct component reuse).
+  async function resolveUid(): Promise<string | null> {
+    if (userId) return userId;
+    const { data } = await supabase.auth.getUser();
+    return data.user?.id ?? null;
+  }
+
   async function toggle(achievement: Achievement) {
     if (readOnly) return;
     const has = Boolean(unlocked[achievement.id]);
@@ -111,8 +121,7 @@ export function AchievementsChecklist({
     setUnlocked(next);
 
     startTransition(async () => {
-      const { data: userData } = await supabase.auth.getUser();
-      const uid = userData.user?.id;
+      const uid = await resolveUid();
       if (!uid) return setUnlocked(prev);
       const { error } = has
         ? await supabase.from("user_achievements").delete().eq("user_id", uid).eq("achievement_id", achievement.id)
@@ -136,7 +145,13 @@ export function AchievementsChecklist({
               <span className="text-[var(--foreground-muted)] ml-2">({stats.pct}%)</span>
             </span>
           </div>
-          <div className="h-2 rounded-full bg-[var(--surface)] overflow-hidden">
+          <div
+            className="h-2 rounded-full bg-[var(--surface)] overflow-hidden"
+            role="progressbar"
+            aria-valuenow={stats.pct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          >
             <div
               className="h-full rounded-full bg-gradient-to-r from-sky-400 to-indigo-500 transition-all duration-500"
               style={{ width: `${stats.pct}%` }}
@@ -152,8 +167,9 @@ export function AchievementsChecklist({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="input max-w-xs"
+          aria-label="Search achievements"
         />
-        <div className="flex items-center gap-1 ml-auto">
+        <div className="flex items-center gap-1 ml-auto" role="group" aria-label="Unlock filter">
           {(["all", "unlocked", "locked"] as const).map((f) => (
             <button
               key={f}
@@ -228,12 +244,13 @@ const AchievementCard = memo(function AchievementCard({
         {!readOnly && (
           <button
             onClick={() => onToggle(a)}
-            aria-label={has ? "Lock" : "Unlock"}
+            aria-label={has ? "Lock achievement" : "Unlock achievement"}
+            aria-pressed={has}
             data-checked={has}
             className={`checkbox mt-0.5 ${pop ? "animate-pop" : ""}`}
           >
             {has && (
-              <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="3">
+              <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden>
                 <path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             )}
@@ -271,7 +288,7 @@ const AchievementCard = memo(function AchievementCard({
           </div>
           {unlockedAt && (
             <p className="text-[11px] text-[var(--foreground-faint)] mt-2 flex items-center gap-1">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3" aria-hidden>
                 <polyline points="20 6 9 17 4 12" />
               </svg>
               Unlocked {new Date(unlockedAt).toLocaleDateString()}
@@ -287,7 +304,10 @@ function AchievementIcon({ imageUrl, name }: { imageUrl: string | null; name: st
   const size = "h-14 w-14";
   if (!imageUrl) {
     return (
-      <div className={`${size} shrink-0 rounded-lg bg-[var(--surface)] border-2 border-[var(--border)] flex items-center justify-center text-lg font-semibold text-[var(--foreground-muted)]`}>
+      <div
+        className={`${size} shrink-0 rounded-lg bg-[var(--surface)] border-2 border-[var(--border)] flex items-center justify-center text-lg font-semibold text-[var(--foreground-muted)]`}
+        aria-hidden
+      >
         {name.charAt(0).toUpperCase()}
       </div>
     );
@@ -295,9 +315,10 @@ function AchievementIcon({ imageUrl, name }: { imageUrl: string | null; name: st
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={imageUrl}
+      src={`/api/image?url=${encodeURIComponent(imageUrl)}`}
       alt={name}
       loading="lazy"
+      decoding="async"
       className={`${size} shrink-0 rounded-lg object-contain border-2 border-[var(--border)] bg-[var(--surface)] p-1`}
     />
   );

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createClient, getUser } from "@/lib/supabase/server";
 import { BIOMES, BIOME_CATEGORIES, type Biome } from "@/lib/biomes";
 import { RARITY_LABEL } from "@/lib/rarity";
@@ -6,10 +7,10 @@ import { BiomeAuraList, type BiomeAura } from "@/components/BiomeAuraList";
 
 type Aura = Database["public"]["Tables"]["auras"]["Row"];
 
-export const metadata = {
-  title: "Biomes — Sol's Checklist",
+export const metadata: Metadata = {
+  title: "Biomes",
   description:
-    "Every biome in Sol's RNG with spawn rate, breakthrough multiplier, duration, and the auras you can roll inside.",
+    "Every biome in Sol's RNG — spawn rate, breakthrough multiplier, duration, and the auras you can roll inside.",
 };
 
 export default async function BiomesPage() {
@@ -71,7 +72,7 @@ export default async function BiomesPage() {
                   key={b.name}
                   biome={b}
                   auras={aurasByBiome.get(b.name) ?? []}
-                  ownedIds={[...(ownedIds ?? new Set())]}
+                  ownedIds={ownedIds}
                 />
               ))}
             </div>
@@ -89,11 +90,10 @@ function BiomeCard({
 }: {
   biome: Biome;
   auras: BiomeAura[];
-  ownedIds: number[];
+  ownedIds: Set<number>;
 }) {
-  const ownedSet = new Set(ownedIds);
   const rolledHere = auras.length;
-  const ownedHere = auras.filter((a) => ownedSet.has(a.id)).length;
+  const ownedHere = auras.filter((a) => ownedIds.has(a.id)).length;
   const isNew = biome.name === "Singularity";
 
   return (

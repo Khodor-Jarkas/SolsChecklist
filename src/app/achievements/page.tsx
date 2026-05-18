@@ -1,6 +1,13 @@
+import type { Metadata } from "next";
 import { createClient, getUser } from "@/lib/supabase/server";
 import { AchievementsChecklist } from "@/components/AchievementsChecklist";
 import { SignInBanner } from "@/components/SignInBanner";
+
+export const metadata: Metadata = {
+  title: "Achievements",
+  description:
+    "Track every Sol's RNG achievement — roll milestones, biome firsts, event badges, and more. Grouped by category so nothing slips through.",
+};
 
 export default async function AchievementsPage() {
   const user = await getUser();
@@ -34,6 +41,7 @@ export default async function AchievementsPage() {
       <AchievementsChecklist
         achievements={achievements ?? []}
         initialUnlocked={Object.fromEntries(unlockedMap)}
+        userId={user?.id}
         readOnly={!user}
       />
     </section>
