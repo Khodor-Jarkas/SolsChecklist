@@ -17,8 +17,6 @@ export type ProfileStats = {
   auraOwned: number;
   achTotal: number;
   achOwned: number;
-  itemTotal: number;
-  itemOwned: number;
   totalRolls: number;
   normalTotal: number;
   normalOwned: number;
@@ -85,8 +83,8 @@ export function ProfileView({
   }
   const { stats, ownedAuras, ownedAchievements } = data;
   const initial = (profile.username ?? "U").charAt(0).toUpperCase();
-  const totalOwned = stats.auraOwned + stats.achOwned + stats.itemOwned;
-  const totalCatalog = stats.auraTotal + stats.achTotal + stats.itemTotal;
+  const totalOwned = stats.auraOwned + stats.achOwned;
+  const totalCatalog = stats.auraTotal + stats.achTotal;
   const overallPct = pct(totalOwned, totalCatalog);
   const normalPct = pct(stats.normalOwned, stats.normalTotal);
   const eventPct = pct(stats.eventOwned, stats.eventTotal);
@@ -255,7 +253,7 @@ export function ProfileView({
                   {o.achievement.image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={o.achievement.image_url}
+                      src={`/api/image?url=${encodeURIComponent(o.achievement.image_url)}`}
                       alt={o.achievement.name}
                       loading="lazy"
                       decoding="async"

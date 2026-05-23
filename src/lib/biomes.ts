@@ -299,9 +299,11 @@ export const BIOME_CATEGORIES: { key: BiomeCategory; label: string }[] = [
   { key: "dev", label: "Dev-only Biomes" },
 ];
 
+const BIOME_BY_NAME = new Map<string, Biome>(BIOMES.map((b) => [b.name, b]));
+
 export function biomeByName(name: string | null | undefined): Biome | undefined {
   if (!name) return undefined;
-  return BIOMES.find((b) => b.name === name);
+  return BIOME_BY_NAME.get(name);
 }
 
 // Maps lowercase substrings that can appear in aura descriptions to the

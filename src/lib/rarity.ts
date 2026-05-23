@@ -65,21 +65,6 @@ export const RARITY_CLASS: Record<Rarity, string> = {
   craftable:       "text-rarity-craftable border-rarity-craftable/40",
 };
 
-// Derive an odds-based rarity tier. Returns null for auras without odds
-// (challenged, challenged_plus, craftable) — those must be set explicitly.
-export function rarityFromOdds(odds: number | null): Rarity | null {
-  if (odds == null || odds <= 0) return null;
-  if (odds < 1_000) return "basic";
-  if (odds < 10_000) return "epic";
-  if (odds < 100_000) return "unique";
-  if (odds < 1_000_000) return "legendary";
-  if (odds <= 10_000_000) return "mythic";
-  if (odds < 99_900_000) return "exalted";
-  if (odds < 1_000_000_000) return "glorious";
-  if (odds <= 7_500_000_000) return "transcendent";
-  return "dimensional";
-}
-
 export function formatOdds(odds: number | null): string {
   if (!odds) return "";
   return `1 in ${odds.toLocaleString()}`;

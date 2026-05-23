@@ -12,14 +12,11 @@ export async function loadProfileData(
   const [
     { data: allAuras },
     { count: totalAchievements },
-    { count: totalItems },
     { data: ownedAuraRows },
     { data: ownedAchievementRows },
-    { count: ownedItemsCount },
   ] = await Promise.all([
     supabase.from("auras").select("rarity, event_name, obtainment"),
     supabase.from("achievements").select("*", { count: "exact", head: true }),
-    supabase.from("items").select("*", { count: "exact", head: true }),
     supabase
       .from("user_auras")
       .select("count, first_obtained_at, auras(id, name, rarity, rarity_odds, native_biome_odds, biome, event_name, event_year, description, obtainment, secondary_obtainment, image_url)")
@@ -28,15 +25,10 @@ export async function loadProfileData(
       .from("user_achievements")
       .select("unlocked_at, achievements(id, name, description, requirement, reward, category, image_url)")
       .eq("user_id", userId),
-    supabase
-      .from("user_items")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", userId),
   ]);
 
   const auraTotal = allAuras?.length ?? 0;
   const achTotal = totalAchievements ?? 0;
-  const itemTotal = totalItems ?? 0;
 
   const catalogByRarityNormal = new Map<Rarity, number>();
   const catalogByRarityEvent  = new Map<Rarity, number>();
@@ -103,8 +95,6 @@ export async function loadProfileData(
       auraOwned: ownedAuras.length,
       achTotal,
       achOwned: ownedAchievements.length,
-      itemTotal,
-      itemOwned: ownedItemsCount ?? 0,
       totalRolls,
       normalTotal,
       normalOwned,

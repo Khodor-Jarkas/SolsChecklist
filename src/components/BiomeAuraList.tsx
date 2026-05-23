@@ -16,14 +16,13 @@ export function BiomeAuraList({
   ownedIds: Set<number>;
 }) {
   const [selected, setSelected] = useState<BiomeAura | null>(null);
-  const owned = ownedIds;
 
   return (
     <>
       <ul className="divide-y divide-[var(--border)]/60">
         {auras.map((a) => {
           const r = a.rarity as Rarity;
-          const isOwned = owned.has(a.id);
+          const isOwned = ownedIds.has(a.id);
           const rarityColor = RARITY_CLASS[r].split(" ")[0];
           return (
             <li
@@ -73,7 +72,7 @@ export function BiomeAuraList({
         <AuraDetailModal
           aura={selected}
           ownedState={
-            owned.has(selected.id)
+            ownedIds.has(selected.id)
               ? { count: 1, first_obtained_at: "" }
               : undefined
           }

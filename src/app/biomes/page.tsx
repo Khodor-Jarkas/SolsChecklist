@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { createClient, getUser } from "@/lib/supabase/server";
 import { BIOMES, BIOME_CATEGORIES, type Biome } from "@/lib/biomes";
-import { RARITY_LABEL } from "@/lib/rarity";
-import type { Database } from "@/lib/supabase/types"; // Database used for ownedRows type inference
+import type { Database } from "@/lib/supabase/types";
 import { BiomeAuraList, type BiomeAura } from "@/components/BiomeAuraList";
 
 type Aura = Database["public"]["Tables"]["auras"]["Row"];
