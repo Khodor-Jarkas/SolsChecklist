@@ -2,10 +2,7 @@ import type { Metadata } from "next";
 import { createClient, getUser } from "@/lib/supabase/server";
 import { getAuraCatalog } from "@/lib/catalog";
 import { BIOMES, BIOME_CATEGORIES, type Biome } from "@/lib/biomes";
-import type { Database } from "@/lib/supabase/types";
 import { BiomeAuraList, type BiomeAura } from "@/components/BiomeAuraList";
-
-type Aura = Database["public"]["Tables"]["auras"]["Row"];
 
 export const metadata: Metadata = {
   title: "Biomes",

@@ -1,14 +1,14 @@
-// Generates seed_achievements.sql and seed_items.sql (plus image seeds) from
+// Generates seed_achievements.sql (plus its image seed) from
 // scraped wiki data in tmp-classify/*.json.
 //
 // The tmp-classify/ directory is gitignored and populated by a one-off
-// scrape of the Sol's RNG wiki (Achievements, Items, and Runes pages via
+// scrape of the Sol's RNG wiki (Achievements page via
 // action=parse&prop=wikitext). If you want to refresh the catalog, re-run
 // the scrape + parser to regenerate the JSONs, then this script.
 //
 // Output SQL is idempotent:
-//   - achievements/items rows use INSERT ... ON CONFLICT (name) DO UPDATE
-//     so re-running refreshes description/category/kind/image_url in place.
+//   - achievement rows use INSERT ... ON CONFLICT (name) DO UPDATE
+//     so re-running refreshes description/category/image_url in place.
 //
 // Run with:
 //   node supabase/tools/gen-catalog-seeds.mjs
@@ -22,8 +22,6 @@ function readJsonIfExists(p) {
 }
 
 const achievementsJson = readJsonIfExists("tmp-classify/achievements.json");
-const itemsJson = readJsonIfExists("tmp-classify/items.json");
-const runesJson = readJsonIfExists("tmp-classify/runes.json");
 
 function urlFor(filename) {
   // MediaWiki normalises filenames to underscores before hashing/serving.
@@ -75,76 +73,6 @@ if (achievementsJson) {
   }
 }
 
-// -------------------- Items --------------------
-
-const items = [];
-
-const kindMap = {
-  Potions: "potion",
-  Equippables: "gear",
-  Other: "misc",
-  "Biome-Exclusive": "material",
-  Runes: "rune",
-};
-
-if (itemsJson) {
-  for (const [tab, rows] of Object.entries(itemsJson)) {
-    if (tab === "Unobtainable") continue;
-    const kind = kindMap[tab] || "misc";
-    if (tab === "Biome-Exclusive" || tab === "Runes") continue; // handled from separate sources
-    for (const r of rows) {
-      if (!r.name) continue;
-      // Dedupe — "Random Potion Sack" appears twice with one empty row.
-      if (items.find((x) => x.name === r.name) && !r.effect) continue;
-      const desc = [r.effect, r.obtainment && `Obtained from: ${r.obtainment}`]
-        .filter(Boolean)
-        .join(" • ")
-        .slice(0, 1000);
-      items.push({ name: r.name, kind, description: desc, image: r.image });
-    }
-  }
-}
-
-if (runesJson) {
-  for (const [runeName, data] of Object.entries(runesJson)) {
-    items.push({
-      name: runeName,
-      kind: "rune",
-      description: data.description
-        ?.replace(/^=\s*/, "")
-        ?.replace(/=== Appearance.*/is, "")
-        ?.trim()
-        ?.slice(0, 800),
-      image: data.image,
-    });
-  }
-}
-if (runesJson) {
-  // Add Rune of Everything (present in Runes page but parser split missed it).
-  items.push({
-    name: "Rune of Everything",
-    kind: "rune",
-    description:
-      "A powerful stone containing the magic of all runes put together. Gives you 5 minutes of all rune effects at once.",
-    image: null,
-  });
-}
-
-const biomeMaterials = itemsJson ? [
-  ["Wind Essence", "WindEssenceRender.png", "Spawns in one of the spawn locations at the start of Windy weather. Used for crafting."],
-  ["Icicle", "Iciclerender.png", "Spawns in one of the spawn locations at the start of Snowy weather. Used for crafting."],
-  ["Rainy Bottle", "RainyBottleRender.png", "Spawns in one of the spawn locations at the start of Rainy weather. Used for crafting."],
-  ["Hour Glass", "HourglassInventory.png", "Spawns in one of the spawn locations at the start of the Sandstorm biome. Used for crafting."],
-  ["Eternal Flame", "Endless_fire.png", "Spawns in one of the spawn locations at the start of the Hell biome. Used for crafting."],
-  ["Piece of Star", "PieceofStarRender.png", "Spawns in one of the spawn locations at the start of the Starfall biome. Used for crafting."],
-  ["Feather Vial", "FeatherVialRender.png", "Spawns in one of the spawn locations at the start of the Heaven biome. Used for crafting."],
-  ["Curruptaine", "CurruptaineRender.png", "Spawns in one of the spawn locations at the start of the Corruption biome. Used for crafting."],
-  ["NULL?", "NULL??.png", "Spawns in one of the spawn locations at the start of the Null biome. Used for crafting."],
-] : [];
-for (const [name, image, description] of biomeMaterials) {
-  items.push({ name, kind: "material", description, image });
-}
-
 // -------------------- Emit SQL --------------------
 
 function emit(rows, table, columns, path) {
@@ -189,15 +117,6 @@ const achievementImageRows = achievements
   .filter((a) => a.image)
   .map((a) => ({ name: a.name, image_url: urlFor(a.image) }));
 
-const itemRows = items.map((i) => ({
-  name: i.name,
-  kind: i.kind,
-  description: i.description,
-}));
-const itemImageRows = items
-  .filter((i) => i.image)
-  .map((i) => ({ name: i.name, image_url: urlFor(i.image) }));
-
 emit(
   achievementRows,
   "achievements",
@@ -225,5 +144,3 @@ function emitImages(rows, table, path) {
 }
 
 emitImages(achievementImageRows, "achievements", "supabase/seed_achievements_images.sql");
-emit(itemRows, "items", ["name", "kind", "description"], "supabase/seed_items.sql");
-emitImages(itemImageRows, "items", "supabase/seed_items_images.sql");
