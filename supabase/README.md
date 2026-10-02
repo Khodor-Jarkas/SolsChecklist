@@ -61,8 +61,26 @@ SUPABASE_PROJECT_ID=<project-ref> npm run db:types
 This writes `src/lib/supabase/database.types.ts`. The project ref is the
 `xxxx` in `https://xxxx.supabase.co`.
 
+## Storing images in Supabase Storage
+
+The catalog's `image_url`s point at the Fandom wiki, so a renamed or deleted
+wiki file breaks the picture on the site. `tools/mirror-images.mjs` copies
+every image into a public Storage bucket (`catalog-images`) and repoints
+`image_url` at the copy:
+
+1. Fix any images that are already gone from the wiki, using `tools/fix-broken-images.mjs`.
+2. Get your **secret** key: Dashboard → Project Settings → API Keys. Never commit
+   it or put it in a `NEXT_PUBLIC_` variable.
+3. Dry run (uploads only, no database changes):
+   `SUPABASE_SECRET_KEY=sb_secret_... node --env-file=.env.local supabase/tools/mirror-images.mjs`
+4. Apply: run the same command with `--apply` added.
+5. Refresh the cache (`/api/revalidate`), or wait 10 minutes.
+
+It's safe to re-run. Rows already pointing at the bucket are skipped.
+
 ## Tools
 
 - `tools/fix-broken-images.mjs`: finds catalog images that no longer exist
   on the wiki and prints SQL to fix them.
+- `tools/mirror-images.mjs`: copies catalog images into Supabase Storage (see above).
 - `tools/gen-*.mjs`: regenerate the seed files from wiki data.
