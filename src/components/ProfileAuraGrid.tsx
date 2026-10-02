@@ -25,16 +25,18 @@ export function ProfileAuraGrid({ ownedAuras }: { ownedAuras: OwnedAuraItem[] })
           const r = o.aura.rarity as Rarity;
           const rarityColor = RARITY_CLASS[r].split(" ")[0];
           return (
-            <li
-              key={o.aura.id}
-              className="group relative cursor-pointer"
-              onClick={() =>
-                setSelected({
-                  aura: o.aura as ModalAura,
-                  ownedState: { count: o.count, first_obtained_at: o.first_obtained_at },
-                })
-              }
-            >
+            <li key={o.aura.id}>
+              <button
+                type="button"
+                aria-haspopup="dialog"
+                className="group relative block w-full cursor-pointer text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                onClick={() =>
+                  setSelected({
+                    aura: o.aura as ModalAura,
+                    ownedState: { count: o.count, first_obtained_at: o.first_obtained_at },
+                  })
+                }
+              >
               <div
                 className={`aspect-square rounded-lg bg-[var(--surface)] border-2 border-rarity-${r}/40 p-1 flex items-center justify-center overflow-hidden transition-all hover:border-rarity-${r}/80 hover:scale-105`}
               >
@@ -65,6 +67,7 @@ export function ProfileAuraGrid({ ownedAuras }: { ownedAuras: OwnedAuraItem[] })
               <p className="text-[10px] text-[var(--foreground-faint)] font-mono text-center">
                 {formatOdds(o.aura.rarity_odds) || RARITY_LABEL[r]}
               </p>
+              </button>
             </li>
           );
         })}

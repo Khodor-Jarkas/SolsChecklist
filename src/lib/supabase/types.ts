@@ -121,28 +121,6 @@ export type Database = {
         };
         Relationships: [];
       };
-      items: {
-        Row: {
-          id: number;
-          name: string;
-          kind: string;
-          description: string | null;
-          image_url: string | null;
-        };
-        Insert: {
-          name: string;
-          kind: string;
-          description?: string | null;
-          image_url?: string | null;
-        };
-        Update: {
-          name?: string;
-          kind?: string;
-          description?: string | null;
-          image_url?: string | null;
-        };
-        Relationships: [];
-      };
       user_auras: {
         Row: {
           user_id: string;
@@ -191,22 +169,6 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
-      };
-      user_items: {
-        Row: {
-          user_id: string;
-          item_id: number;
-          count: number;
-        };
-        Insert: {
-          user_id: string;
-          item_id: number;
-          count?: number;
-        };
-        Update: {
-          count?: number;
-        };
-        Relationships: [];
       };
     };
     Views: {

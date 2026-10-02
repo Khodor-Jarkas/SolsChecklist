@@ -26,11 +26,13 @@ export function BiomeAuraList({
           const isOwned = ownedIds.has(a.id);
           const rarityColor = RARITY_CLASS[r].split(" ")[0];
           return (
-            <li
-              key={a.id}
-              onClick={() => setSelected(a)}
-              className={`px-5 py-2.5 flex items-center gap-3 cursor-pointer transition-colors hover:bg-[var(--card-hover)]/50 ${isOwned ? "bg-[var(--card-hover)]/30" : ""}`}
-            >
+            <li key={a.id}>
+              <button
+                type="button"
+                onClick={() => setSelected(a)}
+                aria-haspopup="dialog"
+                className={`w-full text-left px-5 py-2.5 flex items-center gap-3 cursor-pointer transition-colors hover:bg-[var(--card-hover)]/50 focus-visible:outline-none focus-visible:bg-[var(--card-hover)]/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)] ${isOwned ? "bg-[var(--card-hover)]/30" : ""}`}
+              >
               {(() => {
                 const letterTile = (
                   <div className={`h-10 w-10 shrink-0 rounded-md bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-sm font-semibold ${rarityColor}`}>
@@ -65,6 +67,7 @@ export function BiomeAuraList({
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               )}
+              </button>
             </li>
           );
         })}

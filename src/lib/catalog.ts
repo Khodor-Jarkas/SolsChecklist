@@ -2,24 +2,14 @@
 // identical for every visitor and only changes when it's edited in Supabase,
 // so it's served from Next's data cache instead of querying the database on
 // every page view. Edits show up within CATALOG_TTL seconds.
-import { createClient } from "@supabase/supabase-js";
 import { unstable_cache } from "next/cache";
+import { anonClient } from "./supabase/anon";
 import type { Database } from "./supabase/types";
 
 const CATALOG_TTL = 600;
 
 type Aura = Database["public"]["Tables"]["auras"]["Row"];
 type Achievement = Database["public"]["Tables"]["achievements"]["Row"];
-
-// Cookie-less client: the catalog is public (RLS `using (true)`), and
-// unstable_cache can't read request cookies anyway.
-function anonClient() {
-  return createClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-    { auth: { persistSession: false, autoRefreshToken: false } },
-  );
-}
 
 const cachedAuras = unstable_cache(
   async (): Promise<Aura[]> => {

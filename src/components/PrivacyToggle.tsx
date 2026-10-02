@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { saveErrorMessage, useToast } from "@/components/Toast";
 
 export function PrivacyToggle({
   userId,
@@ -12,6 +13,7 @@ export function PrivacyToggle({
 }) {
   const [isPrivate, setIsPrivate] = useState(initialPrivate);
   const [pending, startTransition] = useTransition();
+  const toast = useToast();
 
   function toggle() {
     const next = !isPrivate;
@@ -25,6 +27,7 @@ export function PrivacyToggle({
       if (error) {
         setIsPrivate(!next); // revert
         console.error(error);
+        toast({ tone: "error", message: saveErrorMessage(error) });
       }
     });
   }
