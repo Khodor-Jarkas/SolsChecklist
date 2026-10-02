@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useMemo, useState, useTransition } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   RARITY_LABEL,
@@ -27,6 +27,31 @@ type OwnedState = Record<number, { count: number; first_obtained_at: string }>;
 type Filter = "all" | "owned" | "missing";
 type Sort = "rarity" | "name" | "odds";
 type View = "rarity" | "events";
+
+// Each view (Normal / Event) keeps its own filters, so e.g. picking "Summer"
+// in the event view doesn't leave the normal view filtered down to nothing.
+type Filters = {
+  rarity: Rarity | "all";
+  biome: string;
+  eventName: string;
+  obtainment: Obtainment | "all";
+  filter: Filter;
+  sort: Sort;
+  query: string;
+};
+type PersistedFilters = Omit<Filters, "query">;
+
+const DEFAULT_FILTERS: Filters = {
+  rarity: "all",
+  biome: "all",
+  eventName: "all",
+  obtainment: "all",
+  filter: "all",
+  sort: "rarity",
+  query: "",
+};
+
+const PREFS_KEY = "auras:prefs:v2";
 
 // Rough calendar order so event sections don't land alphabetical.
 const EVENT_ORDER = [
@@ -71,6 +96,12 @@ function adminSubgroupLabel(biome: string | null): string {
   return ADMIN_EVENT_SUBGROUPS[biome] ?? biome;
 }
 
+// Craft auras are always grouped and filtered as "craftable", whatever their
+// stored rarity.
+function effectiveRarity(a: Aura): Rarity {
+  return a.obtainment === "craft" ? "craftable" : a.rarity;
+}
+
 // Crafting difficulty order (easiest → hardest) based on recipe cost / stat grant.
 // Used as the sort key for the Crafting section instead of rarity_odds (which is
 // null for all craftable auras and would otherwise show as "1 in 0").
@@ -97,31 +128,44 @@ export function AuraChecklist({
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [owned, setOwned] = useState<OwnedState>(initialOwned);
+  // Latest owned state for the memoized card callbacks below, so toggling one
+  // aura doesn't hand every card a new callback and re-render all of them.
+  const ownedRef = useRef(owned);
+  ownedRef.current = owned;
   // Persisted filter/sort prefs — hydrated from localStorage after mount so
   // SSR stays deterministic. Defaults: "rarity" sort (easiest → hardest within
   // each tier, tiers already flow common → transcendent).
-  const [rarity, setRarity] = useState<Rarity | "all">("all");
-  const [biome, setBiome] = useState<string>("all");
-  const [eventName, setEventName] = useState<string>("all");
-  const [obtainment, setObtainment] = useState<Obtainment | "all">("all");
-  const [filter, setFilter] = useState<Filter>("all");
-  const [sort, setSort] = useState<Sort>("rarity");
   const [view, setView] = useState<View>("rarity");
-  const [query, setQuery] = useState("");
+  const [filtersByView, setFiltersByView] = useState<Record<View, Filters>>({
+    rarity: DEFAULT_FILTERS,
+    events: DEFAULT_FILTERS,
+  });
   const [prefsHydrated, setPrefsHydrated] = useState(false);
+
+  const { rarity, biome, eventName, obtainment, filter, sort, query } = filtersByView[view];
+  const updateFilters = (patch: Partial<Filters>) =>
+    setFiltersByView((prev) => ({ ...prev, [view]: { ...prev[view], ...patch } }));
+  const setRarity = (rarity: Rarity | "all") => updateFilters({ rarity });
+  const setBiome = (biome: string) => updateFilters({ biome });
+  const setEventName = (eventName: string) => updateFilters({ eventName });
+  const setObtainment = (obtainment: Obtainment | "all") => updateFilters({ obtainment });
+  const setFilter = (filter: Filter) => updateFilters({ filter });
+  const setSort = (sort: Sort) => updateFilters({ sort });
+  const setQuery = (query: string) => updateFilters({ query });
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem("auras:prefs:v1");
+      const raw = localStorage.getItem(PREFS_KEY);
       if (raw) {
-        const p = JSON.parse(raw);
-        if (p.rarity) setRarity(p.rarity);
-        if (p.biome) setBiome(p.biome);
-        if (p.eventName) setEventName(p.eventName);
-        if (p.obtainment) setObtainment(p.obtainment);
-        if (p.filter) setFilter(p.filter);
-        if (p.sort) setSort(p.sort);
-        if (p.view) setView(p.view);
+        const p = JSON.parse(raw) as {
+          view?: View;
+          filters?: Partial<Record<View, Partial<PersistedFilters>>>;
+        };
+        if (p.view === "rarity" || p.view === "events") setView(p.view);
+        setFiltersByView({
+          rarity: { ...DEFAULT_FILTERS, ...p.filters?.rarity, query: "" },
+          events: { ...DEFAULT_FILTERS, ...p.filters?.events, query: "" },
+        });
       }
     } catch { /* ignore corrupt prefs */ }
     setPrefsHydrated(true);
@@ -129,56 +173,106 @@ export function AuraChecklist({
 
   useEffect(() => {
     if (!prefsHydrated) return;
+    const persist = (f: Filters): PersistedFilters => ({
+      rarity: f.rarity,
+      biome: f.biome,
+      eventName: f.eventName,
+      obtainment: f.obtainment,
+      filter: f.filter,
+      sort: f.sort,
+    });
     try {
       localStorage.setItem(
-        "auras:prefs:v1",
-        JSON.stringify({ rarity, biome, eventName, obtainment, filter, sort, view }),
+        PREFS_KEY,
+        JSON.stringify({
+          view,
+          filters: { rarity: persist(filtersByView.rarity), events: persist(filtersByView.events) },
+        }),
       );
     } catch { /* localStorage disabled */ }
-  }, [prefsHydrated, rarity, biome, eventName, obtainment, filter, sort, view]);
+  }, [prefsHydrated, view, filtersByView]);
   const [selectedAura, setSelectedAura] = useState<Aura | null>(null);
   const [justToggled, setJustToggled] = useState<number | null>(null);
   const [bulkPending, setBulkPending] = useState<Rarity | null>(null);
   const [, startTransition] = useTransition();
 
-  const biomes = useMemo(() => {
-    const set = new Set<string>();
-    for (const a of auras) {
-      if (!a.biome) continue;
-      if (view === "rarity" && DEV_BIOME_NAMES.has(a.biome)) continue;
-      // Don't show event-aura biomes in the rarity view dropdown.
-      if (view === "rarity" && a.event_name) continue;
-      // Events view: only include biomes that actually host event auras.
-      if (view === "events" && !a.event_name) continue;
-      set.add(a.biome);
+  // Auras belonging to the current view. Every filter dropdown is built from
+  // this list, so the Normal view only offers normal-aura options and the
+  // Event view only offers event-aura options.
+  const viewAuras = useMemo(
+    () => auras.filter((a) => (view === "events" ? Boolean(a.event_name) : !a.event_name)),
+    [auras, view],
+  );
+
+  const options = useMemo(() => {
+    const rarityCounts = new Map<Rarity, number>();
+    const biomeCounts = new Map<string, number>();
+    const eventCounts = new Map<string, number>();
+    const obtainmentCounts = new Map<Obtainment, number>();
+    const inc = <K,>(m: Map<K, number>, k: K) => m.set(k, (m.get(k) ?? 0) + 1);
+
+    for (const a of viewAuras) {
+      inc(rarityCounts, effectiveRarity(a));
+      if (a.biome && !(view === "rarity" && DEV_BIOME_NAMES.has(a.biome))) {
+        inc(biomeCounts, a.biome);
+      }
+      if (a.event_name) inc(eventCounts, a.event_name);
+      if (a.obtainment) inc(obtainmentCounts, a.obtainment);
+      if (a.secondary_obtainment && a.secondary_obtainment !== a.obtainment) {
+        inc(obtainmentCounts, a.secondary_obtainment);
+      }
     }
-    return ["all", ...Array.from(set).sort()];
-  }, [auras, view]);
 
-  // If the persisted biome filter isn't valid in the current view (e.g. user
-  // selected a dev biome under events, then switched to rarity), drop it back
-  // to "all" so the visible aura list isn't silently empty.
+    return {
+      rarities: RARITY_ORDER
+        .filter((r) => rarityCounts.has(r))
+        .map((r) => ({ value: r, label: RARITY_LABEL[r], count: rarityCounts.get(r)! })),
+      biomes: Array.from(biomeCounts.keys())
+        .sort()
+        .map((b) => ({ value: b, label: b, count: biomeCounts.get(b)! })),
+      events: Array.from(eventCounts.keys())
+        .sort((a, b) => eventRank(a) - eventRank(b) || a.localeCompare(b))
+        .map((e) => ({ value: e, label: e, count: eventCounts.get(e)! })),
+      obtainments: OBTAINMENT_ORDER
+        .filter((o) => obtainmentCounts.has(o))
+        .map((o) => ({ value: o, label: OBTAINMENT_LABEL[o], count: obtainmentCounts.get(o)! })),
+    };
+  }, [viewAuras, view]);
+
+  // If a saved filter value doesn't exist in this view (e.g. the catalog
+  // changed since it was saved), drop it back to "all" so the list isn't
+  // silently empty.
   useEffect(() => {
-    if (biome !== "all" && !biomes.includes(biome)) setBiome("all");
-  }, [biome, biomes]);
+    // An empty catalog (e.g. a failed fetch) shouldn't wipe saved filters.
+    if (viewAuras.length === 0) return;
+    const has = (list: { value: string }[], v: string) =>
+      v === "all" || list.some((o) => o.value === v);
+    const patch: Partial<Filters> = {};
+    if (!has(options.rarities, rarity)) patch.rarity = "all";
+    if (!has(options.biomes, biome)) patch.biome = "all";
+    if (!has(options.events, eventName)) patch.eventName = "all";
+    if (!has(options.obtainments, obtainment)) patch.obtainment = "all";
+    if (Object.keys(patch).length > 0) {
+      setFiltersByView((prev) => ({ ...prev, [view]: { ...prev[view], ...patch } }));
+    }
+  }, [viewAuras, options, rarity, biome, eventName, obtainment, view]);
 
-  const eventNames = useMemo(() => {
-    const set = new Set<string>();
-    for (const a of auras) if (a.event_name) set.add(a.event_name);
-    return ["all", ...Array.from(set).sort((a, b) => eventRank(a) - eventRank(b))];
-  }, [auras]);
+  const hasActiveFilters =
+    rarity !== "all" ||
+    biome !== "all" ||
+    (view === "events" && eventName !== "all") ||
+    obtainment !== "all" ||
+    filter !== "all" ||
+    query.trim() !== "";
+  const clearFilters = () =>
+    updateFilters({ rarity: "all", biome: "all", eventName: "all", obtainment: "all", filter: "all", query: "" });
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return auras.filter((a) => {
-      // Normal view: hide every event aura. Event view: hide every non-event aura.
-      if (view === "events" && !a.event_name) return false;
-      if (view === "rarity" && a.event_name) return false;
-      // Craft auras are always classified as "craftable" for filter purposes.
-      const effectiveRarity = a.obtainment === "craft" ? "craftable" : a.rarity;
-      if (rarity !== "all" && effectiveRarity !== rarity) return false;
+    return viewAuras.filter((a) => {
+      if (rarity !== "all" && effectiveRarity(a) !== rarity) return false;
       if (biome !== "all" && a.biome !== biome) return false;
-      if (eventName !== "all" && a.event_name !== eventName) return false;
+      if (view === "events" && eventName !== "all" && a.event_name !== eventName) return false;
       if (
         obtainment !== "all" &&
         a.obtainment !== obtainment &&
@@ -191,7 +285,7 @@ export function AuraChecklist({
       if (q && !a.name.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [auras, owned, rarity, biome, eventName, obtainment, filter, query, view]);
+  }, [viewAuras, owned, rarity, biome, eventName, obtainment, filter, query, view]);
 
   const sorter = useMemo(
     () => (a: Aura, b: Aura) => {
@@ -278,19 +372,20 @@ export function AuraChecklist({
 
   // Resolve UID once: use the prop passed from the server, falling back to a
   // live auth call only when not provided (e.g. direct component reuse).
-  async function resolveUid(): Promise<string | null> {
+  const resolveUid = useCallback(async (): Promise<string | null> => {
     if (userId) return userId;
     const { data } = await supabase.auth.getUser();
     return data.user?.id ?? null;
-  }
+  }, [supabase, userId]);
 
-  async function toggle(aura: Aura) {
+  const toggle = useCallback((aura: Aura) => {
     if (readOnly) return;
-    const has = Boolean(owned[aura.id]);
-    const prev = owned;
-    const next: OwnedState = { ...owned };
+    const prev = ownedRef.current;
+    const has = Boolean(prev[aura.id]);
+    const next: OwnedState = { ...prev };
     if (has) delete next[aura.id];
     else next[aura.id] = { count: 1, first_obtained_at: new Date().toISOString() };
+    ownedRef.current = next;
     setOwned(next);
 
     if (!has) {
@@ -310,17 +405,19 @@ export function AuraChecklist({
         console.error(error);
       }
     });
-  }
+  }, [readOnly, resolveUid, supabase]);
 
-  async function incrementCount(aura: Aura, delta: number) {
+  const incrementCount = useCallback((aura: Aura, delta: number) => {
     if (readOnly) return;
-    const current = owned[aura.id];
+    const prev = ownedRef.current;
+    const current = prev[aura.id];
     if (!current) return;
     const newCount = Math.max(1, current.count + delta);
     if (newCount === current.count) return;
 
-    const prev = owned;
-    setOwned({ ...owned, [aura.id]: { ...current, count: newCount } });
+    const next = { ...prev, [aura.id]: { ...current, count: newCount } };
+    ownedRef.current = next;
+    setOwned(next);
 
     startTransition(async () => {
       const uid = await resolveUid();
@@ -335,7 +432,7 @@ export function AuraChecklist({
         console.error(error);
       }
     });
-  }
+  }, [readOnly, resolveUid, supabase]);
 
   async function bulkMark(sectionAuras: Aura[], tier: Rarity) {
     if (readOnly) return;
@@ -411,62 +508,50 @@ export function AuraChecklist({
       {/* Filters */}
       <div className="card p-4 flex flex-wrap gap-2.5 items-center">
         <input
-          placeholder="Search auras…"
+          placeholder={view === "events" ? "Search event auras…" : "Search normal auras…"}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="input max-w-xs"
           aria-label="Search auras"
         />
 
-        <select
-          value={rarity}
-          onChange={(e) => setRarity(e.target.value as Rarity | "all")}
-          className="input max-w-[10rem]"
-          aria-label="Filter by rarity"
-        >
-          <option value="all">All rarities</option>
-          {RARITY_ORDER.map((r) => (
-            <option key={r} value={r}>{RARITY_LABEL[r]}</option>
-          ))}
-        </select>
-
-        {biomes.length > 1 && (
-          <select
-            value={biome}
-            onChange={(e) => setBiome(e.target.value)}
-            className="input max-w-[10rem]"
-            aria-label="Filter by biome"
-          >
-            {biomes.map((b) => (
-              <option key={b} value={b}>{b === "all" ? "All biomes" : b}</option>
-            ))}
-          </select>
-        )}
-
-        {view === "events" && eventNames.length > 1 && (
-          <select
+        {view === "events" && (
+          <FilterSelect
             value={eventName}
-            onChange={(e) => setEventName(e.target.value)}
-            className="input max-w-[12rem]"
-            aria-label="Filter by event"
-          >
-            {eventNames.map((e) => (
-              <option key={e} value={e}>{e === "all" ? "All events" : e}</option>
-            ))}
-          </select>
+            onChange={setEventName}
+            allLabel="All events"
+            options={options.events}
+            ariaLabel="Filter by event"
+            className="max-w-[12rem]"
+          />
         )}
 
-        <select
+        <FilterSelect
+          value={rarity}
+          onChange={(v) => setRarity(v as Rarity | "all")}
+          allLabel="All rarities"
+          options={options.rarities}
+          ariaLabel="Filter by rarity"
+          className="max-w-[10rem]"
+        />
+
+        <FilterSelect
+          value={biome}
+          onChange={setBiome}
+          allLabel="All biomes"
+          options={options.biomes}
+          ariaLabel="Filter by biome"
+          className="max-w-[10rem]"
+        />
+
+        <FilterSelect
           value={obtainment}
-          onChange={(e) => setObtainment(e.target.value as Obtainment | "all")}
-          className="input max-w-[11rem]"
-          aria-label="Filter by obtainment method"
-        >
-          <option value="all">All sources</option>
-          {OBTAINMENT_ORDER.map((o) => (
-            <option key={o} value={o}>{OBTAINMENT_LABEL[o]}</option>
-          ))}
-        </select>
+          onChange={(v) => setObtainment(v as Obtainment | "all")}
+          allLabel="All sources"
+          options={options.obtainments}
+          ariaLabel="Filter by obtainment method"
+          className="max-w-[11rem]"
+        />
 
         <select
           value={sort}
@@ -490,11 +575,17 @@ export function AuraChecklist({
             </button>
           ))}
         </div>
+
+        {hasActiveFilters && (
+          <button onClick={clearFilters} className="btn btn-sm btn-ghost">
+            Clear filters
+          </button>
+        )}
       </div>
 
       {/* Sections */}
       {(view === "rarity" ? sections.length : eventSections.length) === 0 ? (
-        <EmptyState />
+        <EmptyState onClear={hasActiveFilters ? clearFilters : undefined} />
       ) : view === "rarity" ? (
         <div className="space-y-10">
           {sections.map(({ rarity: r, auras: list }, sectionIdx) => {
@@ -623,138 +714,171 @@ function AuraGrid({
 }) {
   return (
     <ul className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-      {list.map((a, idx) => {
-        const r = a.rarity as Rarity;
-        const state = owned[a.id];
-        const has = Boolean(state);
-        const showCounter = COUNTER_RARITIES.has(r);
-        const rarityColor = RARITY_CLASS[r].split(" ")[0];
-        const isLimbo = a.biome === "The Limbo";
-        return (
-          <li
-            key={a.id}
-            onClick={() => onSelect?.(a)}
-            className={[
-              "card p-4 relative overflow-hidden transition-shadow",
-              onSelect ? "cursor-pointer hover:ring-1 hover:ring-[var(--border-strong)]" : "",
-              has ? "card-owned" : "",
-              isLimbo ? "card-limbo" : "",
-            ]
-              .filter(Boolean)
-              .join(" ")}
-          >
-            {/* Gothic cross-hatch overlay for Limbo cards — sits behind content */}
-            {isLimbo && <div className="limbo-ornament" aria-hidden />}
-            <div className={`absolute left-0 top-0 bottom-0 w-1 bg-rarity-${r}`} aria-hidden />
-
-            <div className="flex gap-3 pl-2">
-              {!readOnly && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); toggle(a); }}
-                  aria-label={has ? "Mark as missing" : "Mark as owned"}
-                  aria-pressed={has}
-                  data-checked={has}
-                  className={`checkbox mt-0.5 ${justToggled === a.id ? "animate-pop" : ""}`}
-                >
-                  {has && (
-                    <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden>
-                      <path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  )}
-                </button>
-              )}
-
-              <AuraThumb aura={a} rarity={r} owned={has} priority={idx < priorityCount} />
-
-              <div className="flex-1 min-w-0">
-                <h3 className={`font-medium leading-tight ${has ? "" : "text-[var(--foreground-muted)]"}`}>
-                  {a.name}
-                </h3>
-
-                <div className="text-xs text-[var(--foreground-faint)] mt-1 font-mono space-y-0.5">
-                  {showRarity && <div className={rarityColor}>{RARITY_LABEL[r]}</div>}
-                  <div>{formatOdds(a.rarity_odds)}</div>
-                  {a.biome && (
-                    <div>
-                      <span
-                        className={isLimbo ? "font-semibold tracking-wide" : ""}
-                        style={{ color: biomeByName(a.biome)?.color ?? "var(--foreground-muted)" }}
-                      >
-                        {a.biome}
-                      </span>
-                      {a.native_biome_odds && (
-                        <span className={`ml-1 ${rarityColor}`}>
-                          · {formatOdds(a.native_biome_odds)} native
-                        </span>
-                      )}
-                    </div>
-                  )}
-                  {a.event_name && (
-                    <div className="text-[var(--foreground-muted)]">
-                      {a.event_name}
-                      {a.event_year ? ` ${a.event_year}` : ""}
-                    </div>
-                  )}
-                </div>
-
-                {(() => {
-                  const badges: Obtainment[] = [];
-                  if (a.obtainment && a.obtainment !== "roll") badges.push(a.obtainment);
-                  if (a.secondary_obtainment) badges.push(a.secondary_obtainment);
-                  if (badges.length === 0) return null;
-                  return (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {badges.map((m) => (
-                        <ObtainmentBadge key={m} method={m} />
-                      ))}
-                    </div>
-                  );
-                })()}
-
-                {a.description && (() => {
-                  const parts = potionHighlightParts(a.description);
-                  return (
-                    <p className="text-xs text-[var(--foreground-muted)] mt-2 line-clamp-2 leading-relaxed">
-                      {parts ? (
-                        <>{parts.before}<span style={{ color: parts.color }}>{parts.match}</span>{parts.after}</>
-                      ) : a.description}
-                    </p>
-                  );
-                })()}
-
-                {has && showCounter && (
-                  <div className="mt-3 flex items-center gap-2 pt-3 border-t border-[var(--border)]">
-                    <span className="text-xs text-[var(--foreground-muted)]">Rolled</span>
-                    <div className="flex items-center ml-auto gap-1">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); incrementCount(a, -1); }}
-                        className="h-8 w-8 rounded-md border border-[var(--border)] hover:bg-[var(--card-hover)] text-sm leading-none disabled:opacity-40 touch-manipulation"
-                        disabled={state.count <= 1}
-                        aria-label="Decrease count"
-                      >
-                        −
-                      </button>
-                      <span className="text-sm font-mono font-semibold w-8 text-center tabular-nums">
-                        {state.count}×
-                      </span>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); incrementCount(a, 1); }}
-                        className="h-8 w-8 rounded-md border border-[var(--border)] hover:bg-[var(--card-hover)] text-sm leading-none touch-manipulation"
-                        aria-label="Increase count"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </li>
-        );
-      })}
+      {list.map((a, idx) => (
+        <AuraCard
+          key={a.id}
+          aura={a}
+          state={owned[a.id]}
+          justToggled={justToggled === a.id}
+          toggle={toggle}
+          incrementCount={incrementCount}
+          showRarity={showRarity}
+          readOnly={readOnly}
+          priority={idx < priorityCount}
+          onSelect={onSelect}
+        />
+      ))}
     </ul>
   );
 }
+
+const AuraCard = memo(function AuraCard({
+  aura,
+  state,
+  justToggled,
+  toggle,
+  incrementCount,
+  showRarity,
+  readOnly,
+  priority,
+  onSelect,
+}: {
+  aura: Aura;
+  state: OwnedState[number] | undefined;
+  justToggled: boolean;
+  toggle: (a: Aura) => void;
+  incrementCount: (a: Aura, d: number) => void;
+  showRarity: boolean;
+  readOnly: boolean;
+  priority: boolean;
+  onSelect?: (a: Aura) => void;
+}) {
+  const r = aura.rarity as Rarity;
+  const has = Boolean(state);
+  const showCounter = COUNTER_RARITIES.has(r);
+  const rarityColor = RARITY_CLASS[r].split(" ")[0];
+  const isLimbo = aura.biome === "The Limbo";
+  return (
+    <li
+      onClick={() => onSelect?.(aura)}
+      className={[
+        "card cv-auto p-4 relative overflow-hidden transition-shadow",
+        onSelect ? "cursor-pointer hover:ring-1 hover:ring-[var(--border-strong)]" : "",
+        has ? "card-owned" : "",
+        isLimbo ? "card-limbo" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      {/* Gothic cross-hatch overlay for Limbo cards — sits behind content */}
+      {isLimbo && <div className="limbo-ornament" aria-hidden />}
+      <div className={`absolute left-0 top-0 bottom-0 w-1 bg-rarity-${r}`} aria-hidden />
+
+      <div className="flex gap-3 pl-2">
+        {!readOnly && (
+          <button
+            onClick={(e) => { e.stopPropagation(); toggle(aura); }}
+            aria-label={has ? "Mark as missing" : "Mark as owned"}
+            aria-pressed={has}
+            data-checked={has}
+            className={`checkbox mt-0.5 ${justToggled ? "animate-pop" : ""}`}
+          >
+            {has && (
+              <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden>
+                <path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </button>
+        )}
+
+        <AuraThumb aura={aura} rarity={r} owned={has} priority={priority} />
+
+        <div className="flex-1 min-w-0">
+          <h3 className={`font-medium leading-tight ${has ? "" : "text-[var(--foreground-muted)]"}`}>
+            {aura.name}
+          </h3>
+
+          <div className="text-xs text-[var(--foreground-faint)] mt-1 font-mono space-y-0.5">
+            {showRarity && <div className={rarityColor}>{RARITY_LABEL[r]}</div>}
+            <div>{formatOdds(aura.rarity_odds)}</div>
+            {aura.biome && (
+              <div>
+                <span
+                  className={isLimbo ? "font-semibold tracking-wide" : ""}
+                  style={{ color: biomeByName(aura.biome)?.color ?? "var(--foreground-muted)" }}
+                >
+                  {aura.biome}
+                </span>
+                {aura.native_biome_odds && (
+                  <span className={`ml-1 ${rarityColor}`}>
+                    · {formatOdds(aura.native_biome_odds)} native
+                  </span>
+                )}
+              </div>
+            )}
+            {aura.event_name && (
+              <div className="text-[var(--foreground-muted)]">
+                {aura.event_name}
+                {aura.event_year ? ` ${aura.event_year}` : ""}
+              </div>
+            )}
+          </div>
+
+          {(() => {
+            const badges: Obtainment[] = [];
+            if (aura.obtainment && aura.obtainment !== "roll") badges.push(aura.obtainment);
+            if (aura.secondary_obtainment) badges.push(aura.secondary_obtainment);
+            if (badges.length === 0) return null;
+            return (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {badges.map((m) => (
+                  <ObtainmentBadge key={m} method={m} />
+                ))}
+              </div>
+            );
+          })()}
+
+          {aura.description && (() => {
+            const parts = potionHighlightParts(aura.description);
+            return (
+              <p className="text-xs text-[var(--foreground-muted)] mt-2 line-clamp-2 leading-relaxed">
+                {parts ? (
+                  <>{parts.before}<span style={{ color: parts.color }}>{parts.match}</span>{parts.after}</>
+                ) : aura.description}
+              </p>
+            );
+          })()}
+
+          {state && showCounter && (
+            <div className="mt-3 flex items-center gap-2 pt-3 border-t border-[var(--border)]">
+              <span className="text-xs text-[var(--foreground-muted)]">Rolled</span>
+              <div className="flex items-center ml-auto gap-1">
+                <button
+                  onClick={(e) => { e.stopPropagation(); incrementCount(aura, -1); }}
+                  className="h-8 w-8 rounded-md border border-[var(--border)] hover:bg-[var(--card-hover)] text-sm leading-none disabled:opacity-40 touch-manipulation"
+                  disabled={state.count <= 1}
+                  aria-label="Decrease count"
+                >
+                  −
+                </button>
+                <span className="text-sm font-mono font-semibold w-8 text-center tabular-nums">
+                  {state.count}×
+                </span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); incrementCount(aura, 1); }}
+                  className="h-8 w-8 rounded-md border border-[var(--border)] hover:bg-[var(--card-hover)] text-sm leading-none touch-manipulation"
+                  aria-label="Increase count"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </li>
+  );
+});
 
 const AuraThumb = memo(function AuraThumb({
   aura,
@@ -832,7 +956,43 @@ function ProgressBar({
   );
 }
 
-function EmptyState() {
+// A filter dropdown that only lists options present in the current view, with
+// how many auras each one matches. Hidden when there's nothing to choose
+// between (one option or none), unless a value is still selected.
+function FilterSelect({
+  value,
+  onChange,
+  allLabel,
+  options,
+  ariaLabel,
+  className = "",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  allLabel: string;
+  options: { value: string; label: string; count: number }[];
+  ariaLabel: string;
+  className?: string;
+}) {
+  if (options.length < 2 && value === "all") return null;
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={`input ${className}`}
+      aria-label={ariaLabel}
+    >
+      <option value="all">{allLabel}</option>
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label} ({o.count})
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function EmptyState({ onClear }: { onClear?: () => void }) {
   return (
     <div className="card p-12 text-center space-y-2">
       <div className="mx-auto h-12 w-12 rounded-full bg-[var(--card-hover)] flex items-center justify-center text-[var(--foreground-faint)]" aria-hidden>
@@ -842,7 +1002,13 @@ function EmptyState() {
         </svg>
       </div>
       <p className="text-[var(--foreground-muted)]">No auras match these filters.</p>
-      <p className="text-xs text-[var(--foreground-faint)]">Try clearing the search or switching to &quot;All&quot;.</p>
+      {onClear ? (
+        <button onClick={onClear} className="btn btn-sm btn-primary mt-2">
+          Clear filters
+        </button>
+      ) : (
+        <p className="text-xs text-[var(--foreground-faint)]">Nothing in this view yet.</p>
+      )}
     </div>
   );
 }

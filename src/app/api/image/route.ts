@@ -43,7 +43,11 @@ export async function GET(req: NextRequest) {
     return new NextResponse(new Uint8Array(webp), {
       headers: {
         "Content-Type": "image/webp",
-        "Cache-Control": "public, max-age=31536000, immutable",
+        // s-maxage lets the CDN (Vercel edge, Cloudflare, …) keep the resized
+        // image. max-age alone only caches in each visitor's browser, so every
+        // new visitor re-ran the upstream fetch + sharp re-encode per image.
+        "Cache-Control": "public, max-age=31536000, s-maxage=31536000, immutable",
+        "CDN-Cache-Control": "public, max-age=31536000, immutable",
       },
     });
   } catch {

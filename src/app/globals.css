@@ -64,6 +64,13 @@ h1, h2, h3, h4 {
   border-radius: var(--radius-md);
   transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
+/* Long grids (200+ aura cards): let the browser skip layout and paint for
+   cards that are off-screen. `auto` remembers each card's real height once
+   it has been rendered, so the scrollbar doesn't jump. */
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 160px;
+}
 .card-interactive {
   cursor: pointer;
 }

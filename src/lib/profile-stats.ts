@@ -4,19 +4,20 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Rarity } from "./supabase/types";
 import type { ProfileData } from "@/components/ProfileView";
+import { getAchievementCatalog, getAuraCatalog } from "./catalog";
 
 export async function loadProfileData(
   supabase: SupabaseClient<Database>,
   userId: string,
 ): Promise<ProfileData> {
   const [
-    { data: allAuras },
-    { count: totalAchievements },
+    allAuras,
+    allAchievements,
     { data: ownedAuraRows },
     { data: ownedAchievementRows },
   ] = await Promise.all([
-    supabase.from("auras").select("rarity, event_name, obtainment"),
-    supabase.from("achievements").select("*", { count: "exact", head: true }),
+    getAuraCatalog(),
+    getAchievementCatalog(),
     supabase
       .from("user_auras")
       .select("count, first_obtained_at, auras(id, name, rarity, rarity_odds, native_biome_odds, biome, event_name, event_year, description, obtainment, secondary_obtainment, image_url)")
@@ -27,15 +28,15 @@ export async function loadProfileData(
       .eq("user_id", userId),
   ]);
 
-  const auraTotal = allAuras?.length ?? 0;
-  const achTotal = totalAchievements ?? 0;
+  const auraTotal = allAuras.length;
+  const achTotal = allAchievements.length;
 
   const catalogByRarityNormal = new Map<Rarity, number>();
   const catalogByRarityEvent  = new Map<Rarity, number>();
   let normalTotal = 0;
   let eventTotal = 0;
   const incMap = (m: Map<Rarity, number>, r: Rarity) => m.set(r, (m.get(r) ?? 0) + 1);
-  for (const a of allAuras ?? []) {
+  for (const a of allAuras) {
     const isCraft = a.obtainment === "craft";
     if (a.event_name) {
       if (!isCraft) incMap(catalogByRarityEvent, a.rarity);
@@ -110,3 +111,25 @@ export async function loadProfileData(
     ownedAchievements,
   };
 }
+
+// Placeholder for profiles whose collection isn't shown (private, non-owner).
+export const EMPTY_PROFILE_DATA: ProfileData = {
+  stats: {
+    auraTotal: 0,
+    auraOwned: 0,
+    achTotal: 0,
+    achOwned: 0,
+    totalRolls: 0,
+    normalTotal: 0,
+    normalOwned: 0,
+    eventTotal: 0,
+    eventOwned: 0,
+    byRarityNormal: new Map(),
+    byRarityEvent: new Map(),
+    catalogByRarityNormal: new Map(),
+    catalogByRarityEvent: new Map(),
+    collectedStats: 0,
+  },
+  ownedAuras: [],
+  ownedAchievements: [],
+};

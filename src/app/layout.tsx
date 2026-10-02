@@ -80,7 +80,11 @@ export default async function RootLayout({
                 <NavLink href="/biomes">Biomes</NavLink>
               </span>
               <NavLink href="/achievements">Achievements</NavLink>
-              {user && <NavLink href="/profile">Profile</NavLink>}
+              {user && (
+                <NavLink href={username ? `/u/${encodeURIComponent(username)}` : "/profile"}>
+                  Profile
+                </NavLink>
+              )}
               <div className="hidden md:block ml-2">
                 <UserSearch />
               </div>

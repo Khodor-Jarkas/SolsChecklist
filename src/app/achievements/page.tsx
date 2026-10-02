@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createClient, getUser } from "@/lib/supabase/server";
+import { getAchievementCatalog } from "@/lib/catalog";
 import { AchievementsChecklist } from "@/components/AchievementsChecklist";
 import { SignInBanner } from "@/components/SignInBanner";
 
@@ -13,8 +14,8 @@ export default async function AchievementsPage() {
   const user = await getUser();
   const supabase = await createClient();
 
-  const [{ data: achievements }, { data: unlocked }] = await Promise.all([
-    supabase.from("achievements").select("*").order("category").order("id"),
+  const [achievements, { data: unlocked }] = await Promise.all([
+    getAchievementCatalog(),
     user
       ? supabase
           .from("user_achievements")
@@ -28,7 +29,7 @@ export default async function AchievementsPage() {
     unlockedMap.set(row.achievement_id, row.unlocked_at);
   }
 
-  const total = achievements?.length ?? 0;
+  const total = achievements.length;
   return (
     <section className="space-y-6">
       <header>
@@ -39,7 +40,7 @@ export default async function AchievementsPage() {
       </header>
       {!user && <SignInBanner what="track your unlocks" />}
       <AchievementsChecklist
-        achievements={achievements ?? []}
+        achievements={achievements}
         initialUnlocked={Object.fromEntries(unlockedMap)}
         userId={user?.id}
         readOnly={!user}
