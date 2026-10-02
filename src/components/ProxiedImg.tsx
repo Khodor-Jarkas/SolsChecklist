@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-// Catalog image served through the /api/image resizer. If the resized version
-// fails (resizer error, timeout, upstream hiccup), fall back to the original
-// image URL; if that fails too, render `fallback` (e.g. the letter tile)
-// instead of a broken-image icon.
+// Catalog image served through the /api/image resizer. Transient resize
+// failures are handled server-side (it redirects to the original image); if
+// the image still fails — e.g. the file no longer exists on the wiki — render
+// `fallback` (the letter tile) instead of a broken-image icon. We don't load
+// the original URL directly here: for a deleted wiki file that shows Fandom's
+// grey "image not found" placeholder, which looks like a real picture.
 export function ProxiedImg({
   url,
   size,
@@ -23,24 +25,19 @@ export function ProxiedImg({
   priority?: boolean;
   fallback?: ReactNode;
 }) {
-  const [stage, setStage] = useState<"proxy" | "direct" | "failed">("proxy");
+  const [failed, setFailed] = useState(false);
   const ref = useRef<HTMLImageElement>(null);
-
-  const next = () => setStage((s) => (s === "proxy" ? "direct" : "failed"));
 
   // An image that failed before hydration never fires React's onError, so
   // check once on mount for an image that finished loading with no pixels.
   useEffect(() => {
     const img = ref.current;
-    if (img && img.complete && img.naturalWidth === 0) next();
+    if (img && img.complete && img.naturalWidth === 0) setFailed(true);
   }, []);
 
-  if (stage === "failed") return <>{fallback}</>;
+  if (failed) return <>{fallback}</>;
 
-  const src =
-    stage === "proxy"
-      ? `/api/image?url=${encodeURIComponent(url)}${size ? `&size=${size}` : ""}`
-      : url;
+  const src = `/api/image?url=${encodeURIComponent(url)}${size ? `&size=${size}` : ""}`;
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
@@ -52,8 +49,7 @@ export function ProxiedImg({
       decoding="async"
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       fetchPriority={priority ? "high" : ("auto" as any)}
-      referrerPolicy={stage === "direct" ? "no-referrer" : undefined}
-      onError={next}
+      onError={() => setFailed(true)}
       className={className}
     />
   );
