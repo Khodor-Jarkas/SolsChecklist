@@ -55,6 +55,45 @@ const DEFAULT_FILTERS: Filters = {
 
 const PREFS_KEY = "auras:prefs:v2";
 
+// Filters are mirrored into the address bar (e.g. /auras?view=events&event=Summer)
+// so a filtered view can be shared or bookmarked. Only non-default values are
+// written. URL params win over saved prefs when the page loads.
+const URL_KEYS: Record<keyof Filters, string> = {
+  query: "q",
+  rarity: "rarity",
+  biome: "biome",
+  eventName: "event",
+  obtainment: "source",
+  filter: "show",
+  sort: "sort",
+};
+
+function filtersFromUrl(params: URLSearchParams): { view: View; filters: Partial<Filters> } | null {
+  const hasAny = params.has("view") || Object.values(URL_KEYS).some((k) => params.has(k));
+  if (!hasAny) return null;
+  const view: View = params.get("view") === "events" ? "events" : "rarity";
+  const filters: Partial<Filters> = {};
+  for (const [field, key] of Object.entries(URL_KEYS) as [keyof Filters, string][]) {
+    const v = params.get(key);
+    if (v) (filters as Record<string, string>)[field] = v;
+  }
+  if (filters.filter && !["all", "owned", "missing"].includes(filters.filter)) delete filters.filter;
+  if (filters.sort && !["rarity", "name", "odds"].includes(filters.sort)) delete filters.sort;
+  return { view, filters };
+}
+
+function filtersToUrl(view: View, f: Filters): string {
+  const params = new URLSearchParams();
+  if (view === "events") params.set("view", "events");
+  for (const [field, key] of Object.entries(URL_KEYS) as [keyof Filters, string][]) {
+    if (field === "eventName" && view !== "events") continue;
+    const v = field === "query" ? f.query.trim() : f[field];
+    if (v && v !== DEFAULT_FILTERS[field]) params.set(key, v);
+  }
+  const qs = params.toString();
+  return qs ? `?${qs}` : "";
+}
+
 // Rough calendar order so event sections don't land alphabetical.
 const EVENT_ORDER = [
   "Valentine's Day",
@@ -170,6 +209,15 @@ export function AuraChecklist({
         });
       }
     } catch { /* ignore corrupt prefs */ }
+    // A shared link's filters override the saved ones for that view.
+    const fromUrl = filtersFromUrl(new URLSearchParams(window.location.search));
+    if (fromUrl) {
+      setView(fromUrl.view);
+      setFiltersByView((prev) => ({
+        ...prev,
+        [fromUrl.view]: { ...DEFAULT_FILTERS, ...fromUrl.filters },
+      }));
+    }
     setPrefsHydrated(true);
   }, []);
 
@@ -192,6 +240,16 @@ export function AuraChecklist({
         }),
       );
     } catch { /* localStorage disabled */ }
+  }, [prefsHydrated, view, filtersByView]);
+
+  // Keep the address bar in sync without adding history entries or
+  // triggering a server round trip.
+  useEffect(() => {
+    if (!prefsHydrated) return;
+    const next = `${window.location.pathname}${filtersToUrl(view, filtersByView[view])}`;
+    if (next !== `${window.location.pathname}${window.location.search}`) {
+      window.history.replaceState(window.history.state, "", next);
+    }
   }, [prefsHydrated, view, filtersByView]);
   const [selectedAura, setSelectedAura] = useState<Aura | null>(null);
   const [justToggled, setJustToggled] = useState<number | null>(null);
@@ -266,6 +324,16 @@ export function AuraChecklist({
     obtainment !== "all" ||
     filter !== "all" ||
     query.trim() !== "";
+  // Dropdown/ownership filters in use (search is always visible, so not counted).
+  const activeFilterCount = [
+    rarity !== "all",
+    biome !== "all",
+    view === "events" && eventName !== "all",
+    obtainment !== "all",
+    filter !== "all",
+  ].filter(Boolean).length;
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
   const clearFilters = () =>
     updateFilters({ rarity: "all", biome: "all", eventName: "all", obtainment: "all", filter: "all", query: "" });
 
@@ -559,13 +627,30 @@ export function AuraChecklist({
 
       {/* Filters */}
       <div className="card p-4 flex flex-wrap gap-2.5 items-center">
-        <input
-          placeholder={view === "events" ? "Search event auras…" : "Search normal auras…"}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="input max-w-xs"
-          aria-label="Search auras"
-        />
+        <div className="flex gap-2 w-full sm:w-auto">
+          <input
+            placeholder={view === "events" ? "Search event auras…" : "Search normal auras…"}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="input flex-1 sm:max-w-xs"
+            aria-label="Search auras"
+          />
+          {/* Phones: the dropdowns fold away behind this button. */}
+          <button
+            type="button"
+            onClick={() => setFiltersOpen((o) => !o)}
+            aria-expanded={filtersOpen}
+            aria-controls="aura-filters"
+            className={`btn btn-sm sm:hidden shrink-0 ${activeFilterCount > 0 ? "btn-primary" : "btn-ghost"}`}
+          >
+            Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+          </button>
+        </div>
+
+        <div
+          id="aura-filters"
+          className={`${filtersOpen ? "flex" : "hidden"} w-full flex-col gap-2.5 sm:contents [&_select]:w-full sm:[&_select]:w-auto`}
+        >
 
         {view === "events" && (
           <FilterSelect
@@ -574,7 +659,7 @@ export function AuraChecklist({
             allLabel="All events"
             options={options.events}
             ariaLabel="Filter by event"
-            className="max-w-[12rem]"
+            className="sm:max-w-[12rem]"
           />
         )}
 
@@ -584,7 +669,7 @@ export function AuraChecklist({
           allLabel="All rarities"
           options={options.rarities}
           ariaLabel="Filter by rarity"
-          className="max-w-[10rem]"
+          className="sm:max-w-[10rem]"
         />
 
         <FilterSelect
@@ -593,7 +678,7 @@ export function AuraChecklist({
           allLabel="All biomes"
           options={options.biomes}
           ariaLabel="Filter by biome"
-          className="max-w-[10rem]"
+          className="sm:max-w-[10rem]"
         />
 
         <FilterSelect
@@ -602,13 +687,13 @@ export function AuraChecklist({
           allLabel="All sources"
           options={options.obtainments}
           ariaLabel="Filter by obtainment method"
-          className="max-w-[11rem]"
+          className="sm:max-w-[11rem]"
         />
 
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value as Sort)}
-          className="input max-w-[11rem]"
+          className="input sm:max-w-[11rem]"
           aria-label="Sort order"
         >
           <option value="rarity">Sort: easiest first</option>
@@ -616,7 +701,7 @@ export function AuraChecklist({
           <option value="name">Sort: A–Z</option>
         </select>
 
-        <div className="flex items-center gap-1 ml-auto" role="group" aria-label="Ownership filter">
+        <div className="flex items-center gap-1 sm:ml-auto" role="group" aria-label="Ownership filter">
           {(["all", "owned", "missing"] as const).map((f) => (
             <button
               key={f}
@@ -633,6 +718,7 @@ export function AuraChecklist({
             Clear filters
           </button>
         )}
+        </div>
       </div>
 
       {/* Sections */}
@@ -847,7 +933,20 @@ const AuraCard = memo(function AuraCard({
 
         <div className="flex-1 min-w-0">
           <h3 className={`font-medium leading-tight ${has ? "" : "text-[var(--foreground-muted)]"}`}>
-            {aura.name}
+            {onSelect ? (
+              // The whole card is clickable with a mouse; this button makes
+              // the details reachable from the keyboard too.
+              <button
+                type="button"
+                aria-haspopup="dialog"
+                onClick={(e) => { e.stopPropagation(); onSelect(aura); }}
+                className="text-left rounded-sm hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--card)]"
+              >
+                {aura.name}
+              </button>
+            ) : (
+              aura.name
+            )}
           </h3>
 
           <div className="text-xs text-[var(--foreground-faint)] mt-1 font-mono space-y-0.5">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 import { RARITY_CLASS, RARITY_LABEL, OBTAINMENT_LABEL, formatOdds } from "@/lib/rarity";
 import type { Obtainment, Rarity } from "@/lib/supabase/types";
@@ -75,6 +75,10 @@ export function AuraDetailModal({
   if (aura.obtainment && aura.obtainment !== "roll") badges.push(aura.obtainment);
   if (aura.secondary_obtainment) badges.push(aura.secondary_obtainment);
 
+  const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", handler);
@@ -85,6 +89,34 @@ export function AuraDetailModal({
     };
   }, [onClose]);
 
+  // Move focus into the dialog, keep Tab inside it, and hand focus back to
+  // whatever opened it when it closes.
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    const trap = (e: KeyboardEvent) => {
+      if (e.key !== "Tab" || !dialogRef.current) return;
+      const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", trap);
+    return () => {
+      document.removeEventListener("keydown", trap);
+      opener?.focus?.();
+    };
+  }, []);
+
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
@@ -93,6 +125,10 @@ export function AuraDetailModal({
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
 
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         className={[
           "relative z-10 w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-2xl",
           "border border-[var(--border-strong)]",
@@ -105,6 +141,7 @@ export function AuraDetailModal({
         <div className={`h-1 w-full bg-rarity-${r} relative z-10`} />
 
         <button
+          ref={closeRef}
           onClick={onClose}
           className="absolute top-3 right-3 z-20 h-8 w-8 rounded-full bg-black/30 hover:bg-black/50 flex items-center justify-center text-white/70 hover:text-white transition-colors"
           aria-label="Close"
@@ -139,7 +176,7 @@ export function AuraDetailModal({
 
           <div className="flex-1 min-w-0 space-y-3">
             <div>
-              <h2 className={`text-xl font-bold leading-tight ${rarityColor}`}>{aura.name}</h2>
+              <h2 id={titleId} className={`text-xl font-bold leading-tight ${rarityColor}`}>{aura.name}</h2>
               <span className={`text-sm font-medium ${rarityColor} opacity-70`}>{RARITY_LABEL[r]}</span>
             </div>
 
