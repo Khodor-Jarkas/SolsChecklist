@@ -14,6 +14,7 @@ import type { Database, Obtainment, Rarity } from "@/lib/supabase/types";
 import { BIOMES, biomeByName, potionHighlightParts } from "@/lib/biomes";
 import { AuraDetailModal, ObtainmentBadge, COUNTER_RARITIES } from "@/components/AuraDetailModal";
 import { ProxiedImg } from "@/components/ProxiedImg";
+import { saveErrorMessage, useToast } from "@/components/Toast";
 
 // Dev / admin-spawn biomes are surfaced via the events view ("Admin Events"),
 // so we exclude them from the biome filter and from the normal-view aura list
@@ -379,6 +380,21 @@ export function AuraChecklist({
     return data.user?.id ?? null;
   }, [supabase, userId]);
 
+  const toast = useToast();
+
+  // Undo an optimistic change for just these auras, leaving any other edits
+  // made in the meantime alone.
+  const restore = useCallback((prev: OwnedState, ids: number[]) => {
+    setOwned((cur) => {
+      const n = { ...cur };
+      for (const id of ids) {
+        if (prev[id]) n[id] = prev[id];
+        else delete n[id];
+      }
+      return n;
+    });
+  }, []);
+
   const toggle = useCallback((aura: Aura) => {
     if (readOnly) return;
     const prev = ownedRef.current;
@@ -396,17 +412,25 @@ export function AuraChecklist({
 
     startTransition(async () => {
       const uid = await resolveUid();
-      if (!uid) return setOwned(prev);
-
-      const { error } = has
-        ? await supabase.from("user_auras").delete().eq("user_id", uid).eq("aura_id", aura.id)
-        : await supabase.from("user_auras").insert({ user_id: uid, aura_id: aura.id, count: 1 });
-      if (error) {
-        setOwned(prev);
-        console.error(error);
+      const { error } = !uid
+        ? { error: null }
+        : has
+          ? await supabase.from("user_auras").delete().eq("user_id", uid).eq("aura_id", aura.id)
+          : await supabase.from("user_auras").insert({ user_id: uid, aura_id: aura.id, count: 1 });
+      if (!uid || error) {
+        restore(prev, [aura.id]);
+        if (error) console.error(error);
+        toast({
+          tone: "error",
+          message: saveErrorMessage(error, Boolean(uid)),
+          action: uid ? { label: "Retry", onClick: () => toggleRef.current(aura) } : undefined,
+        });
       }
     });
-  }, [readOnly, resolveUid, supabase]);
+  }, [readOnly, resolveUid, supabase, restore, toast]);
+  // Lets the Retry button call the latest toggle.
+  const toggleRef = useRef(toggle);
+  toggleRef.current = toggle;
 
   const incrementCount = useCallback((aura: Aura, delta: number) => {
     if (readOnly) return;
@@ -422,23 +446,48 @@ export function AuraChecklist({
 
     startTransition(async () => {
       const uid = await resolveUid();
-      if (!uid) return setOwned(prev);
-      const { error } = await supabase
-        .from("user_auras")
-        .update({ count: newCount })
-        .eq("user_id", uid)
-        .eq("aura_id", aura.id);
-      if (error) {
-        setOwned(prev);
-        console.error(error);
+      const { error } = !uid
+        ? { error: null }
+        : await supabase
+            .from("user_auras")
+            .update({ count: newCount })
+            .eq("user_id", uid)
+            .eq("aura_id", aura.id);
+      if (!uid || error) {
+        restore(prev, [aura.id]);
+        if (error) console.error(error);
+        toast({ tone: "error", message: saveErrorMessage(error, Boolean(uid)) });
       }
     });
-  }, [readOnly, resolveUid, supabase]);
+  }, [readOnly, resolveUid, supabase, restore, toast]);
+
+  function undoBulk(ids: number[], tier: Rarity) {
+    const prev = ownedRef.current;
+    setOwned((cur) => {
+      const n = { ...cur };
+      for (const id of ids) delete n[id];
+      return n;
+    });
+    startTransition(async () => {
+      const uid = await resolveUid();
+      const { error } = !uid
+        ? { error: null }
+        : await supabase.from("user_auras").delete().eq("user_id", uid).in("aura_id", ids);
+      if (!uid || error) {
+        restore(prev, ids);
+        if (error) console.error(error);
+        toast({ tone: "error", message: saveErrorMessage(error, Boolean(uid)) });
+        return;
+      }
+      toast({ message: `Unmarked ${ids.length} ${RARITY_LABEL[tier]} aura${ids.length === 1 ? "" : "s"}.`, durationMs: 3000 });
+    });
+  }
 
   async function bulkMark(sectionAuras: Aura[], tier: Rarity) {
     if (readOnly) return;
     const missing = sectionAuras.filter((a) => !owned[a.id]);
     if (missing.length === 0) return;
+    const ids = missing.map((a) => a.id);
 
     setBulkPending(tier);
     const prev = owned;
@@ -449,19 +498,21 @@ export function AuraChecklist({
 
     startTransition(async () => {
       const uid = await resolveUid();
-      if (!uid) {
-        setOwned(prev);
-        setBulkPending(null);
+      const rows = missing.map((a) => ({ user_id: uid ?? "", aura_id: a.id, count: 1 }));
+      const { error } = !uid ? { error: null } : await supabase.from("user_auras").insert(rows);
+      setBulkPending(null);
+      if (!uid || error) {
+        restore(prev, ids);
+        if (error) console.error(error);
+        toast({ tone: "error", message: saveErrorMessage(error, Boolean(uid)) });
         return;
       }
-
-      const rows = missing.map((a) => ({ user_id: uid, aura_id: a.id, count: 1 }));
-      const { error } = await supabase.from("user_auras").insert(rows);
-      if (error) {
-        setOwned(prev);
-        console.error(error);
-      }
-      setBulkPending(null);
+      // One misclick can tick a whole tier, so offer a quick way back.
+      toast({
+        message: `Marked ${ids.length} ${RARITY_LABEL[tier]} aura${ids.length === 1 ? "" : "s"} as owned.`,
+        action: { label: "Undo", onClick: () => undoBulk(ids, tier) },
+        durationMs: 8000,
+      });
     });
   }
 

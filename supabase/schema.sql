@@ -158,14 +158,21 @@ create policy "catalog items readable"          on public.items         for sele
 create policy "profiles readable"       on public.profiles for select using (true);
 create policy "profiles self update"    on public.profiles for update using (auth.uid() = id);
 
--- User progress: publicly readable (for shared /u/<username> profiles),
--- but only the owner can INSERT/UPDATE/DELETE.
-create policy "user_auras public select"    on public.user_auras        for select using (true);
+-- User progress: readable by the owner, and by everyone when the owner's
+-- profile is public (shared /u/<username> pages). Only the owner can
+-- INSERT/UPDATE/DELETE.
+create policy "user_auras visible select" on public.user_auras for select using (
+  user_id = (select auth.uid())
+  or not exists (select 1 from public.profiles p where p.id = user_auras.user_id and p.is_private)
+);
 create policy "user_auras self insert"      on public.user_auras        for insert with check (auth.uid() = user_id);
 create policy "user_auras self update"      on public.user_auras        for update using (auth.uid() = user_id);
 create policy "user_auras self delete"      on public.user_auras        for delete using (auth.uid() = user_id);
 
-create policy "user_achievements public select" on public.user_achievements for select using (true);
+create policy "user_achievements visible select" on public.user_achievements for select using (
+  user_id = (select auth.uid())
+  or not exists (select 1 from public.profiles p where p.id = user_achievements.user_id and p.is_private)
+);
 create policy "user_ach self insert"         on public.user_achievements for insert with check (auth.uid() = user_id);
 create policy "user_ach self delete"         on public.user_achievements for delete using (auth.uid() = user_id);
 

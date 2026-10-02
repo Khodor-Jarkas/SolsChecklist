@@ -4,6 +4,7 @@ import { memo, useEffect, useMemo, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/types";
 import { ProxiedImg } from "@/components/ProxiedImg";
+import { saveErrorMessage, useToast } from "@/components/Toast";
 
 type Achievement = Database["public"]["Tables"]["achievements"]["Row"];
 type UnlockedState = Record<number, string>;
@@ -43,6 +44,7 @@ export function AchievementsChecklist({
   const [filter, setFilter] = useState<Filter>("all");
   const [prefsHydrated, setPrefsHydrated] = useState(false);
   const [, startTransition] = useTransition();
+  const toast = useToast();
 
   useEffect(() => {
     try {
@@ -123,13 +125,21 @@ export function AchievementsChecklist({
 
     startTransition(async () => {
       const uid = await resolveUid();
-      if (!uid) return setUnlocked(prev);
-      const { error } = has
-        ? await supabase.from("user_achievements").delete().eq("user_id", uid).eq("achievement_id", achievement.id)
-        : await supabase.from("user_achievements").insert({ user_id: uid, achievement_id: achievement.id });
-      if (error) {
-        setUnlocked(prev);
-        console.error(error);
+      const { error } = !uid
+        ? { error: null }
+        : has
+          ? await supabase.from("user_achievements").delete().eq("user_id", uid).eq("achievement_id", achievement.id)
+          : await supabase.from("user_achievements").insert({ user_id: uid, achievement_id: achievement.id });
+      if (!uid || error) {
+        // Revert just this achievement, keeping any other changes.
+        setUnlocked((cur) => {
+          const n = { ...cur };
+          if (prev[achievement.id]) n[achievement.id] = prev[achievement.id];
+          else delete n[achievement.id];
+          return n;
+        });
+        if (error) console.error(error);
+        toast({ tone: "error", message: saveErrorMessage(error, Boolean(uid)) });
       }
     });
   }

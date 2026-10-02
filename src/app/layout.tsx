@@ -5,6 +5,8 @@ import "./globals.css";
 import { getUser, getUserProfile } from "@/lib/supabase/server";
 import { SignOutButton } from "@/components/SignOutButton";
 import { UserSearch } from "@/components/UserSearch";
+import { ToastProvider } from "@/components/Toast";
+import { MobileMenu } from "@/components/MobileMenu";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -68,24 +70,24 @@ export default async function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <body className="antialiased font-sans">
+        <ToastProvider>
         <header className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--background)]/75 backdrop-blur">
           <div className="mx-auto max-w-6xl px-4 h-14 flex items-center justify-between gap-4">
             <Link href="/" className="font-semibold tracking-tight text-[15px]">
               <span className="text-[var(--accent)]">Sol&apos;s</span>{" "}
               <span className="text-[var(--foreground)]">Checklist</span>
             </Link>
-            <nav className="flex items-center gap-1 text-sm" aria-label="Main navigation">
+            <MobileMenu signedIn={Boolean(user)} username={username} />
+            <nav className="hidden md:flex items-center gap-1 text-sm" aria-label="Main navigation">
               <NavLink href="/auras">Auras</NavLink>
-              <span className="hidden sm:contents">
-                <NavLink href="/biomes">Biomes</NavLink>
-              </span>
+              <NavLink href="/biomes">Biomes</NavLink>
               <NavLink href="/achievements">Achievements</NavLink>
               {user && (
                 <NavLink href={username ? `/u/${encodeURIComponent(username)}` : "/profile"}>
                   Profile
                 </NavLink>
               )}
-              <div className="hidden md:block ml-2">
+              <div className="ml-2">
                 <UserSearch />
               </div>
               {user ? (
@@ -93,7 +95,7 @@ export default async function RootLayout({
                   {username && (
                     <Link
                       href={`/u/${encodeURIComponent(username)}`}
-                      className="hidden sm:inline-flex items-center ml-2 px-2 py-1 rounded-md bg-[var(--card)] border border-[var(--border)] text-xs text-[var(--foreground)]/70 hover:text-[var(--foreground)] hover:border-[var(--border-strong)] transition-colors"
+                      className="inline-flex items-center ml-2 px-2 py-1 rounded-md bg-[var(--card)] border border-[var(--border)] text-xs text-[var(--foreground)]/70 hover:text-[var(--foreground)] hover:border-[var(--border-strong)] transition-colors"
                       title="Your public profile"
                     >
                       @{username}
@@ -113,6 +115,7 @@ export default async function RootLayout({
           </div>
         </header>
         <main className="mx-auto max-w-6xl px-4 py-6 md:py-10">{children}</main>
+        </ToastProvider>
       </body>
     </html>
   );

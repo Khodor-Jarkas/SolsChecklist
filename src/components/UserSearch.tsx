@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 
 type Hit = { username: string; avatar_url: string | null };
 
-export function UserSearch() {
+export function UserSearch({ fullWidth = false }: { fullWidth?: boolean }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -89,10 +89,10 @@ export function UserSearch() {
         onKeyDown={onKey}
         placeholder="Find a user…"
         aria-label="Find a user"
-        className="input h-8 w-44 md:w-56 text-sm"
+        className={`input text-sm ${fullWidth ? "h-10 w-full" : "h-8 w-44 md:w-56"}`}
       />
       {open && hits.length > 0 && (
-        <div className="absolute top-full mt-1 right-0 w-64 rounded-md border border-[var(--border)] bg-[var(--card)] shadow-lg z-30 overflow-hidden">
+        <div className={`absolute top-full mt-1 right-0 ${fullWidth ? "left-0" : "w-64"} rounded-md border border-[var(--border)] bg-[var(--card)] shadow-lg z-30 overflow-hidden`}>
           {hits.map((h, i) => (
             <Link
               key={h.username}
@@ -124,7 +124,7 @@ export function UserSearch() {
         </div>
       )}
       {open && query.trim().length >= 2 && hits.length === 0 && (
-        <div className="absolute top-full mt-1 right-0 w-64 rounded-md border border-[var(--border)] bg-[var(--card)] shadow-lg z-30 p-3 text-xs text-[var(--foreground-muted)]">
+        <div className={`absolute top-full mt-1 right-0 ${fullWidth ? "left-0" : "w-64"} rounded-md border border-[var(--border)] bg-[var(--card)] shadow-lg z-30 p-3 text-xs text-[var(--foreground-muted)]`}>
           No user found. Press Enter to try @{query.trim()} anyway.
         </div>
       )}
