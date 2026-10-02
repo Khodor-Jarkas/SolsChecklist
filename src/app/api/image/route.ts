@@ -65,6 +65,11 @@ export async function GET(req: NextRequest) {
       headers: { "User-Agent": "SolsChecklist/1.0" },
       next: { revalidate: 86400 },
     });
+    // The file is gone from the wiki: say so, rather than redirecting to
+    // Fandom's grey placeholder. The page shows the letter tile instead.
+    if (upstream.status === 404 || upstream.status === 410) {
+      return new NextResponse(null, { status: 404, headers: { "Cache-Control": "no-store" } });
+    }
     if (!upstream.ok) return redirectToOriginal(url);
     input = Buffer.from(await upstream.arrayBuffer());
   } catch {
