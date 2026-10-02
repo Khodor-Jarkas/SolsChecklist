@@ -5,6 +5,7 @@ import { RARITY_CLASS, RARITY_LABEL, formatOdds } from "@/lib/rarity";
 import type { Rarity } from "@/lib/supabase/types";
 import { AuraDetailModal } from "@/components/AuraDetailModal";
 import type { ModalAura } from "@/components/AuraDetailModal";
+import { ProxiedImg } from "@/components/ProxiedImg";
 
 export type BiomeAura = ModalAura & { id: number };
 
@@ -30,20 +31,21 @@ export function BiomeAuraList({
               onClick={() => setSelected(a)}
               className={`px-5 py-2.5 flex items-center gap-3 cursor-pointer transition-colors hover:bg-[var(--card-hover)]/50 ${isOwned ? "bg-[var(--card-hover)]/30" : ""}`}
             >
-              {a.image_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={`/api/image?url=${encodeURIComponent(a.image_url)}`}
-                  alt={a.name}
-                  loading="lazy"
-                  decoding="async"
-                  className="h-10 w-10 shrink-0 rounded-md object-contain bg-[var(--surface)] border border-[var(--border)] p-0.5"
-                />
-              ) : (
-                <div className={`h-10 w-10 shrink-0 rounded-md bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-sm font-semibold ${rarityColor}`}>
-                  {a.name.replace(/[^A-Za-z★]/g, "").charAt(0).toUpperCase() || "?"}
-                </div>
-              )}
+              {(() => {
+                const letterTile = (
+                  <div className={`h-10 w-10 shrink-0 rounded-md bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-sm font-semibold ${rarityColor}`}>
+                    {a.name.replace(/[^A-Za-z★]/g, "").charAt(0).toUpperCase() || "?"}
+                  </div>
+                );
+                return a.image_url ? (
+                  <ProxiedImg
+                    url={a.image_url}
+                    alt={a.name}
+                    className="h-10 w-10 shrink-0 rounded-md object-contain bg-[var(--surface)] border border-[var(--border)] p-0.5"
+                    fallback={letterTile}
+                  />
+                ) : letterTile;
+              })()}
               <div className="flex-1 min-w-0">
                 <div className={`text-sm truncate ${isOwned ? "" : "text-[var(--foreground-muted)]"}`}>
                   {a.name}

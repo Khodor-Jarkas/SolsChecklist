@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { RARITY_CLASS, RARITY_LABEL, OBTAINMENT_LABEL, formatOdds } from "@/lib/rarity";
 import type { Obtainment, Rarity } from "@/lib/supabase/types";
 import { biomeByName, potionHighlightParts } from "@/lib/biomes";
+import { ProxiedImg } from "@/components/ProxiedImg";
 
 // Rarities where showing "rolled N×" is meaningful.
 export const COUNTER_RARITIES = new Set<Rarity>([
@@ -117,18 +118,23 @@ export function AuraDetailModal({
           <div
             className={`shrink-0 mx-auto sm:mx-0 w-44 h-44 rounded-xl border-2 border-rarity-${r}/50 bg-black/20 flex items-center justify-center overflow-hidden`}
           >
-            {aura.image_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={`/api/image?url=${encodeURIComponent(aura.image_url)}&size=large`}
-                alt={aura.name}
-                className="max-w-full max-h-full object-contain"
-              />
-            ) : (
-              <span className={`text-5xl font-bold ${rarityColor}`}>
-                {aura.name.replace(/[^A-Za-z★]/g, "").charAt(0).toUpperCase() || "?"}
-              </span>
-            )}
+            {(() => {
+              const letter = (
+                <span className={`text-5xl font-bold ${rarityColor}`}>
+                  {aura.name.replace(/[^A-Za-z★]/g, "").charAt(0).toUpperCase() || "?"}
+                </span>
+              );
+              return aura.image_url ? (
+                <ProxiedImg
+                  url={aura.image_url}
+                  size="large"
+                  alt={aura.name}
+                  loading="eager"
+                  className="max-w-full max-h-full object-contain"
+                  fallback={letter}
+                />
+              ) : letter;
+            })()}
           </div>
 
           <div className="flex-1 min-w-0 space-y-3">

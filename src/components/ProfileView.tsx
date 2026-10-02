@@ -3,6 +3,7 @@ import type { Rarity } from "@/lib/supabase/types";
 import { PrivacyToggle } from "./PrivacyToggle";
 import { ProfileAuraGrid } from "./ProfileAuraGrid";
 import { RarityBreakdown } from "./RarityBreakdown";
+import { ProxiedImg } from "@/components/ProxiedImg";
 
 type Profile = {
   id: string;
@@ -250,20 +251,21 @@ export function ProfileView({
               .sort((a, b) => b.unlocked_at.localeCompare(a.unlocked_at))
               .map((o) => (
                 <li key={o.achievement.id} className="card p-3 flex items-start gap-3">
-                  {o.achievement.image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={`/api/image?url=${encodeURIComponent(o.achievement.image_url)}`}
-                      alt={o.achievement.name}
-                      loading="lazy"
-                      decoding="async"
-                      className="h-10 w-10 shrink-0 rounded-md bg-[var(--surface)] p-0.5 object-contain border border-[var(--border)]"
-                    />
-                  ) : (
-                    <div className="h-10 w-10 shrink-0 rounded-md bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-sm text-[var(--foreground-muted)]">
-                      {o.achievement.name.charAt(0).toUpperCase()}
-                    </div>
-                  )}
+                  {(() => {
+                    const letterTile = (
+                      <div className="h-10 w-10 shrink-0 rounded-md bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-sm text-[var(--foreground-muted)]">
+                        {o.achievement.name.charAt(0).toUpperCase()}
+                      </div>
+                    );
+                    return o.achievement.image_url ? (
+                      <ProxiedImg
+                        url={o.achievement.image_url}
+                        alt={o.achievement.name}
+                        className="h-10 w-10 shrink-0 rounded-md bg-[var(--surface)] p-0.5 object-contain border border-[var(--border)]"
+                        fallback={letterTile}
+                      />
+                    ) : letterTile;
+                  })()}
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm truncate">{o.achievement.name}</p>
                     {o.achievement.requirement && (
