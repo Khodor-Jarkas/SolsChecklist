@@ -3,6 +3,8 @@ import type { Rarity } from "@/lib/supabase/types";
 import { PrivacyToggle } from "./PrivacyToggle";
 import { ProfileAuraGrid } from "./ProfileAuraGrid";
 import { RarityBreakdown } from "./RarityBreakdown";
+import { ProgressHistory } from "./ProgressHistory";
+import { weeklyCounts } from "@/lib/history";
 import { ProxiedImg } from "@/components/ProxiedImg";
 
 type Profile = {
@@ -74,10 +76,13 @@ export function ProfileView({
   profile,
   data,
   isOwner,
+  viewerUsername = null,
 }: {
   profile: Profile;
   data: ProfileData;
   isOwner: boolean;
+  /** Signed-in viewer's username, for the "Compare with me" link. */
+  viewerUsername?: string | null;
 }) {
   if (profile.is_private && !isOwner) {
     return <PrivateProfileStub profile={profile} />;
@@ -131,6 +136,14 @@ export function ProfileView({
               <PrivacyToggle userId={profile.id} initialPrivate={profile.is_private} />
             </div>
           )}
+          {!isOwner && viewerUsername && (
+            <Link
+              href={`/compare?a=${encodeURIComponent(viewerUsername)}&b=${encodeURIComponent(profile.username)}`}
+              className="btn btn-sm btn-ghost mt-3"
+            >
+              Compare with me
+            </Link>
+          )}
         </div>
         <ProgressRing pct={overallPct} />
       </header>
@@ -176,6 +189,8 @@ export function ProfileView({
           }
         />
       </div>
+
+      <ProgressHistory weeks={weeklyCounts(ownedAuras.map((o) => o.first_obtained_at))} />
 
       {/* Aura collection breakdown */}
       <div className="card p-6 space-y-6">

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { createClient, getUser } from "@/lib/supabase/server";
+import { createClient, getUser, getUserProfile } from "@/lib/supabase/server";
 import { ProfileView } from "@/components/ProfileView";
 import { EMPTY_PROFILE_DATA, loadProfileData } from "@/lib/profile-stats";
 
@@ -30,7 +30,16 @@ export default async function PublicProfilePage({
       ? EMPTY_PROFILE_DATA
       : await loadProfileData(supabase, profile.id);
 
-  return <ProfileView profile={profile} data={data} isOwner={isOwner} />;
+  const viewerProfile = viewer && !isOwner ? await getUserProfile(viewer.id) : null;
+
+  return (
+    <ProfileView
+      profile={profile}
+      data={data}
+      isOwner={isOwner}
+      viewerUsername={viewerProfile?.username ?? null}
+    />
+  );
 }
 
 export async function generateMetadata({
