@@ -21,6 +21,37 @@ const SIZES = {
   large: 320,
 } as const;
 
+// Re-encoding animated GIFs holds every frame in memory. A page requests
+// dozens of thumbnails at once, and processing them all in parallel on one
+// instance could exhaust memory and fail the whole batch, so cap how many
+// run at a time. Others wait their turn.
+sharp.cache(false);
+const MAX_CONCURRENT = 2;
+let active = 0;
+const waiting: (() => void)[] = [];
+
+async function withSlot<T>(fn: () => Promise<T>): Promise<T> {
+  if (active >= MAX_CONCURRENT) await new Promise<void>((r) => waiting.push(r));
+  else active++;
+  try {
+    return await fn();
+  } finally {
+    // Hand the slot straight to the next waiter, or free it.
+    const next = waiting.shift();
+    if (next) next();
+    else active--;
+  }
+}
+
+// Serve the original image instead of an error so the page still shows it.
+// Not cached, so the next request retries the resize.
+function redirectToOriginal(url: string) {
+  return new NextResponse(null, {
+    status: 307,
+    headers: { Location: url, "Cache-Control": "no-store" },
+  });
+}
+
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get("url");
   if (!url || !isAllowed(url)) return new NextResponse(null, { status: 400 });
@@ -28,17 +59,25 @@ export async function GET(req: NextRequest) {
   const sizeParam = req.nextUrl.searchParams.get("size");
   const px = sizeParam === "large" ? SIZES.large : SIZES.thumb;
 
+  let input: Buffer;
   try {
     const upstream = await fetch(url, {
       headers: { "User-Agent": "SolsChecklist/1.0" },
       next: { revalidate: 86400 },
     });
-    if (!upstream.ok) return new NextResponse(null, { status: 502 });
+    if (!upstream.ok) return redirectToOriginal(url);
+    input = Buffer.from(await upstream.arrayBuffer());
+  } catch {
+    return redirectToOriginal(url);
+  }
 
-    const webp = await sharp(Buffer.from(await upstream.arrayBuffer()), { animated: true })
-      .resize(px, px, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
-      .webp({ quality: 85 })
-      .toBuffer();
+  try {
+    const webp = await withSlot(() =>
+      sharp(input, { animated: true })
+        .resize(px, px, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+        .webp({ quality: 85 })
+        .toBuffer(),
+    );
 
     return new NextResponse(new Uint8Array(webp), {
       headers: {
@@ -50,7 +89,8 @@ export async function GET(req: NextRequest) {
         "CDN-Cache-Control": "public, max-age=31536000, immutable",
       },
     });
-  } catch {
-    return new NextResponse(null, { status: 500 });
+  } catch (e) {
+    console.error("image resize failed", url, e);
+    return redirectToOriginal(url);
   }
 }

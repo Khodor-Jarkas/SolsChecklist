@@ -13,6 +13,7 @@ import {
 import type { Database, Obtainment, Rarity } from "@/lib/supabase/types";
 import { BIOMES, biomeByName, potionHighlightParts } from "@/lib/biomes";
 import { AuraDetailModal, ObtainmentBadge, COUNTER_RARITIES } from "@/components/AuraDetailModal";
+import { ProxiedImg } from "@/components/ProxiedImg";
 
 // Dev / admin-spawn biomes are surfaced via the events view ("Admin Events"),
 // so we exclude them from the biome filter and from the normal-view aura list
@@ -897,29 +898,24 @@ const AuraThumb = memo(function AuraThumb({
     : "bg-[var(--surface)] border-[var(--border)]";
   const classes = `${size} shrink-0 rounded-lg object-contain border-2 ${ring} p-1`;
 
-  if (!aura.image_url) {
-    return (
-      <div
-        className={`${size} shrink-0 rounded-lg border-2 flex items-center justify-center text-3xl font-semibold text-rarity-${rarity} ${ring}`}
-        aria-hidden
-      >
-        {aura.name.replace(/[^A-Za-z★]/g, "").charAt(0).toUpperCase() || "?"}
-      </div>
-    );
-  }
+  const letterTile = (
+    <div
+      className={`${size} shrink-0 rounded-lg border-2 flex items-center justify-center text-3xl font-semibold text-rarity-${rarity} ${ring}`}
+      aria-hidden
+    >
+      {aura.name.replace(/[^A-Za-z★]/g, "").charAt(0).toUpperCase() || "?"}
+    </div>
+  );
 
-  const src = `/api/image?url=${encodeURIComponent(aura.image_url)}`;
+  if (!aura.image_url) return letterTile;
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={src}
+    <ProxiedImg
+      url={aura.image_url}
       alt={aura.name}
-      loading={priority ? "eager" : "lazy"}
-      decoding="async"
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      fetchPriority={priority ? "high" : ("auto" as any)}
+      priority={priority}
       className={classes}
+      fallback={letterTile}
     />
   );
 });

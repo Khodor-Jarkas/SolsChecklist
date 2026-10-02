@@ -3,6 +3,7 @@
 import { memo, useEffect, useMemo, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/types";
+import { ProxiedImg } from "@/components/ProxiedImg";
 
 type Achievement = Database["public"]["Tables"]["achievements"]["Row"];
 type UnlockedState = Record<number, string>;
@@ -302,24 +303,21 @@ const AchievementCard = memo(function AchievementCard({
 
 function AchievementIcon({ imageUrl, name }: { imageUrl: string | null; name: string }) {
   const size = "h-14 w-14";
-  if (!imageUrl) {
-    return (
-      <div
-        className={`${size} shrink-0 rounded-lg bg-[var(--surface)] border-2 border-[var(--border)] flex items-center justify-center text-lg font-semibold text-[var(--foreground-muted)]`}
-        aria-hidden
-      >
-        {name.charAt(0).toUpperCase()}
-      </div>
-    );
-  }
+  const letterTile = (
+    <div
+      className={`${size} shrink-0 rounded-lg bg-[var(--surface)] border-2 border-[var(--border)] flex items-center justify-center text-lg font-semibold text-[var(--foreground-muted)]`}
+      aria-hidden
+    >
+      {name.charAt(0).toUpperCase()}
+    </div>
+  );
+  if (!imageUrl) return letterTile;
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={`/api/image?url=${encodeURIComponent(imageUrl)}`}
+    <ProxiedImg
+      url={imageUrl}
       alt={name}
-      loading="lazy"
-      decoding="async"
       className={`${size} shrink-0 rounded-lg object-contain border-2 border-[var(--border)] bg-[var(--surface)] p-1`}
+      fallback={letterTile}
     />
   );
 }

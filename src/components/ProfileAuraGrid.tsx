@@ -6,6 +6,7 @@ import type { Rarity } from "@/lib/supabase/types";
 import { AuraDetailModal } from "@/components/AuraDetailModal";
 import type { ModalAura } from "@/components/AuraDetailModal";
 import type { OwnedAuraItem } from "@/components/ProfileView";
+import { ProxiedImg } from "@/components/ProxiedImg";
 
 type Selected = { aura: ModalAura; ownedState: { count: number; first_obtained_at: string } };
 
@@ -37,20 +38,21 @@ export function ProfileAuraGrid({ ownedAuras }: { ownedAuras: OwnedAuraItem[] })
               <div
                 className={`aspect-square rounded-lg bg-[var(--surface)] border-2 border-rarity-${r}/40 p-1 flex items-center justify-center overflow-hidden transition-all hover:border-rarity-${r}/80 hover:scale-105`}
               >
-                {o.aura.image_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={`/api/image?url=${encodeURIComponent(o.aura.image_url)}`}
-                    alt={o.aura.name}
-                    loading="lazy"
-                    decoding="async"
-                    className="w-full h-full object-contain"
-                  />
-                ) : (
-                  <span className={`text-lg font-semibold ${rarityColor}`}>
-                    {o.aura.name.replace(/[^A-Za-z★]/g, "").charAt(0).toUpperCase() || "?"}
-                  </span>
-                )}
+                {(() => {
+                  const letter = (
+                    <span className={`text-lg font-semibold ${rarityColor}`}>
+                      {o.aura.name.replace(/[^A-Za-z★]/g, "").charAt(0).toUpperCase() || "?"}
+                    </span>
+                  );
+                  return o.aura.image_url ? (
+                    <ProxiedImg
+                      url={o.aura.image_url}
+                      alt={o.aura.name}
+                      className="w-full h-full object-contain"
+                      fallback={letter}
+                    />
+                  ) : letter;
+                })()}
                 {o.count > 1 && (
                   <span className="absolute top-1 right-1 text-[10px] font-mono bg-black/60 backdrop-blur text-white px-1 rounded">
                     ×{o.count}
