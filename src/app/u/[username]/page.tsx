@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient, getUser } from "@/lib/supabase/server";
 import { ProfileView } from "@/components/ProfileView";
-import { loadProfileData } from "@/lib/profile-stats";
+import { EMPTY_PROFILE_DATA, loadProfileData } from "@/lib/profile-stats";
 
 export default async function PublicProfilePage({
   params,
@@ -12,25 +12,25 @@ export default async function PublicProfilePage({
   const decoded = decodeURIComponent(username);
 
   const supabase = await createClient();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, username, avatar_url, is_private, created_at")
-    .eq("username", decoded)
-    .single();
+  const [{ data: profile }, viewer] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, username, avatar_url, is_private, created_at")
+      .eq("username", decoded)
+      .single(),
+    getUser(),
+  ]);
   if (!profile) notFound();
 
-  const [viewer, data] = await Promise.all([
-    getUser(),
-    loadProfileData(supabase, profile.id),
-  ]);
+  const isOwner = viewer?.id === profile.id;
+  // Private profiles render a stub for everyone but the owner — don't load
+  // a collection nobody will see.
+  const data =
+    profile.is_private && !isOwner
+      ? EMPTY_PROFILE_DATA
+      : await loadProfileData(supabase, profile.id);
 
-  return (
-    <ProfileView
-      profile={profile}
-      data={data}
-      isOwner={viewer?.id === profile.id}
-    />
-  );
+  return <ProfileView profile={profile} data={data} isOwner={isOwner} />;
 }
 
 export async function generateMetadata({

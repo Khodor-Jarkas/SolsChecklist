@@ -1,10 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getUser } from "@/lib/supabase/server";
+import { getUser, getUserProfile } from "@/lib/supabase/server";
 
 export default async function HomePage() {
   const user = await getUser();
-  if (user) redirect("/profile");
+  if (user) {
+    // Go straight to the profile instead of bouncing through /profile.
+    const profile = await getUserProfile(user.id);
+    redirect(profile ? `/u/${encodeURIComponent(profile.username)}` : "/profile");
+  }
 
   return (
     <div className="space-y-16 md:space-y-24 py-8 md:py-12">

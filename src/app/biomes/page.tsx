@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createClient, getUser } from "@/lib/supabase/server";
+import { getAuraCatalog } from "@/lib/catalog";
 import { BIOMES, BIOME_CATEGORIES, type Biome } from "@/lib/biomes";
 import type { Database } from "@/lib/supabase/types";
 import { BiomeAuraList, type BiomeAura } from "@/components/BiomeAuraList";
@@ -13,14 +14,10 @@ export const metadata: Metadata = {
 };
 
 export default async function BiomesPage() {
-  const supabase = await createClient();
-  const user = await getUser();
+  const [supabase, user] = await Promise.all([createClient(), getUser()]);
 
-  // Pull only what we need to render the lists.
-  const [{ data: auras }, { data: ownedRows }] = await Promise.all([
-    supabase
-      .from("auras")
-      .select("id, name, rarity, rarity_odds, native_biome_odds, biome, event_name, event_year, description, obtainment, secondary_obtainment, image_url"),
+  const [auras, { data: ownedRows }] = await Promise.all([
+    getAuraCatalog(),
     user
       ? supabase.from("user_auras").select("aura_id").eq("user_id", user.id)
       : Promise.resolve({ data: [] as { aura_id: number }[] }),
@@ -29,7 +26,7 @@ export default async function BiomesPage() {
   const ownedIds = new Set((ownedRows ?? []).map((r) => r.aura_id));
 
   const aurasByBiome = new Map<string, BiomeAura[]>();
-  for (const a of auras ?? []) {
+  for (const a of auras) {
     if (!a.biome) continue;
     const list = aurasByBiome.get(a.biome) ?? [];
     list.push(a as BiomeAura);
@@ -39,8 +36,8 @@ export default async function BiomesPage() {
     list.sort((a, b) => (a.rarity_odds ?? 0) - (b.rarity_odds ?? 0));
   }
 
-  const totalAuras = (auras ?? []).filter((a) => a.biome).length;
-  const ownedBiomeAuras = (auras ?? []).filter(
+  const totalAuras = auras.filter((a) => a.biome).length;
+  const ownedBiomeAuras = auras.filter(
     (a) => a.biome && ownedIds.has(a.id),
   ).length;
 

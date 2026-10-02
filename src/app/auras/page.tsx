@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createClient, getUser } from "@/lib/supabase/server";
+import { getAuraCatalog } from "@/lib/catalog";
 import { AuraChecklist } from "@/components/AuraChecklist";
 import { SignInBanner } from "@/components/SignInBanner";
 import { RARITY_ORDER } from "@/lib/rarity";
@@ -15,8 +16,8 @@ export default async function AurasPage() {
   const user = await getUser();
   const supabase = await createClient();
 
-  const [{ data: auras }, { data: owned }] = await Promise.all([
-    supabase.from("auras").select("*"),
+  const [auras, { data: owned }] = await Promise.all([
+    getAuraCatalog(),
     user
       ? supabase
           .from("user_auras")
@@ -25,7 +26,7 @@ export default async function AurasPage() {
       : Promise.resolve({ data: [] as { aura_id: number; count: number; first_obtained_at: string }[] }),
   ]);
 
-  const catalog = (auras ?? []).slice().sort((a, b) => {
+  const catalog = auras.slice().sort((a, b) => {
     const r = RARITY_ORDER.indexOf(a.rarity as Rarity) - RARITY_ORDER.indexOf(b.rarity as Rarity);
     if (r !== 0) return r;
     return (a.rarity_odds ?? 0) - (b.rarity_odds ?? 0);

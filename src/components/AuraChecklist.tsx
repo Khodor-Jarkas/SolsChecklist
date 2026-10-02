@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useMemo, useState, useTransition } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   RARITY_LABEL,
@@ -27,6 +27,31 @@ type OwnedState = Record<number, { count: number; first_obtained_at: string }>;
 type Filter = "all" | "owned" | "missing";
 type Sort = "rarity" | "name" | "odds";
 type View = "rarity" | "events";
+
+// Each view (Normal / Event) keeps its own filters, so e.g. picking "Summer"
+// in the event view doesn't leave the normal view filtered down to nothing.
+type Filters = {
+  rarity: Rarity | "all";
+  biome: string;
+  eventName: string;
+  obtainment: Obtainment | "all";
+  filter: Filter;
+  sort: Sort;
+  query: string;
+};
+type PersistedFilters = Omit<Filters, "query">;
+
+const DEFAULT_FILTERS: Filters = {
+  rarity: "all",
+  biome: "all",
+  eventName: "all",
+  obtainment: "all",
+  filter: "all",
+  sort: "rarity",
+  query: "",
+};
+
+const PREFS_KEY = "auras:prefs:v2";
 
 // Rough calendar order so event sections don't land alphabetical.
 const EVENT_ORDER = [
@@ -97,31 +122,44 @@ export function AuraChecklist({
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [owned, setOwned] = useState<OwnedState>(initialOwned);
+  // Latest owned state for the memoized card callbacks below, so toggling one
+  // aura doesn't hand every card a new callback and re-render all of them.
+  const ownedRef = useRef(owned);
+  ownedRef.current = owned;
   // Persisted filter/sort prefs — hydrated from localStorage after mount so
   // SSR stays deterministic. Defaults: "rarity" sort (easiest → hardest within
   // each tier, tiers already flow common → transcendent).
-  const [rarity, setRarity] = useState<Rarity | "all">("all");
-  const [biome, setBiome] = useState<string>("all");
-  const [eventName, setEventName] = useState<string>("all");
-  const [obtainment, setObtainment] = useState<Obtainment | "all">("all");
-  const [filter, setFilter] = useState<Filter>("all");
-  const [sort, setSort] = useState<Sort>("rarity");
   const [view, setView] = useState<View>("rarity");
-  const [query, setQuery] = useState("");
+  const [filtersByView, setFiltersByView] = useState<Record<View, Filters>>({
+    rarity: DEFAULT_FILTERS,
+    events: DEFAULT_FILTERS,
+  });
   const [prefsHydrated, setPrefsHydrated] = useState(false);
+
+  const { rarity, biome, eventName, obtainment, filter, sort, query } = filtersByView[view];
+  const updateFilters = (patch: Partial<Filters>) =>
+    setFiltersByView((prev) => ({ ...prev, [view]: { ...prev[view], ...patch } }));
+  const setRarity = (rarity: Rarity | "all") => updateFilters({ rarity });
+  const setBiome = (biome: string) => updateFilters({ biome });
+  const setEventName = (eventName: string) => updateFilters({ eventName });
+  const setObtainment = (obtainment: Obtainment | "all") => updateFilters({ obtainment });
+  const setFilter = (filter: Filter) => updateFilters({ filter });
+  const setSort = (sort: Sort) => updateFilters({ sort });
+  const setQuery = (query: string) => updateFilters({ query });
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem("auras:prefs:v1");
+      const raw = localStorage.getItem(PREFS_KEY);
       if (raw) {
-        const p = JSON.parse(raw);
-        if (p.rarity) setRarity(p.rarity);
-        if (p.biome) setBiome(p.biome);
-        if (p.eventName) setEventName(p.eventName);
-        if (p.obtainment) setObtainment(p.obtainment);
-        if (p.filter) setFilter(p.filter);
-        if (p.sort) setSort(p.sort);
-        if (p.view) setView(p.view);
+        const p = JSON.parse(raw) as {
+          view?: View;
+          filters?: Partial<Record<View, Partial<PersistedFilters>>>;
+        };
+        if (p.view === "rarity" || p.view === "events") setView(p.view);
+        setFiltersByView({
+          rarity: { ...DEFAULT_FILTERS, ...p.filters?.rarity, query: "" },
+          events: { ...DEFAULT_FILTERS, ...p.filters?.events, query: "" },
+        });
       }
     } catch { /* ignore corrupt prefs */ }
     setPrefsHydrated(true);
@@ -129,13 +167,24 @@ export function AuraChecklist({
 
   useEffect(() => {
     if (!prefsHydrated) return;
+    const persist = (f: Filters): PersistedFilters => ({
+      rarity: f.rarity,
+      biome: f.biome,
+      eventName: f.eventName,
+      obtainment: f.obtainment,
+      filter: f.filter,
+      sort: f.sort,
+    });
     try {
       localStorage.setItem(
-        "auras:prefs:v1",
-        JSON.stringify({ rarity, biome, eventName, obtainment, filter, sort, view }),
+        PREFS_KEY,
+        JSON.stringify({
+          view,
+          filters: { rarity: persist(filtersByView.rarity), events: persist(filtersByView.events) },
+        }),
       );
     } catch { /* localStorage disabled */ }
-  }, [prefsHydrated, rarity, biome, eventName, obtainment, filter, sort, view]);
+  }, [prefsHydrated, view, filtersByView]);
   const [selectedAura, setSelectedAura] = useState<Aura | null>(null);
   const [justToggled, setJustToggled] = useState<number | null>(null);
   const [bulkPending, setBulkPending] = useState<Rarity | null>(null);
@@ -159,8 +208,10 @@ export function AuraChecklist({
   // selected a dev biome under events, then switched to rarity), drop it back
   // to "all" so the visible aura list isn't silently empty.
   useEffect(() => {
-    if (biome !== "all" && !biomes.includes(biome)) setBiome("all");
-  }, [biome, biomes]);
+    if (biome !== "all" && !biomes.includes(biome)) {
+      setFiltersByView((prev) => ({ ...prev, [view]: { ...prev[view], biome: "all" } }));
+    }
+  }, [biome, biomes, view]);
 
   const eventNames = useMemo(() => {
     const set = new Set<string>();
@@ -178,7 +229,7 @@ export function AuraChecklist({
       const effectiveRarity = a.obtainment === "craft" ? "craftable" : a.rarity;
       if (rarity !== "all" && effectiveRarity !== rarity) return false;
       if (biome !== "all" && a.biome !== biome) return false;
-      if (eventName !== "all" && a.event_name !== eventName) return false;
+      if (view === "events" && eventName !== "all" && a.event_name !== eventName) return false;
       if (
         obtainment !== "all" &&
         a.obtainment !== obtainment &&
@@ -278,19 +329,20 @@ export function AuraChecklist({
 
   // Resolve UID once: use the prop passed from the server, falling back to a
   // live auth call only when not provided (e.g. direct component reuse).
-  async function resolveUid(): Promise<string | null> {
+  const resolveUid = useCallback(async (): Promise<string | null> => {
     if (userId) return userId;
     const { data } = await supabase.auth.getUser();
     return data.user?.id ?? null;
-  }
+  }, [supabase, userId]);
 
-  async function toggle(aura: Aura) {
+  const toggle = useCallback((aura: Aura) => {
     if (readOnly) return;
-    const has = Boolean(owned[aura.id]);
-    const prev = owned;
-    const next: OwnedState = { ...owned };
+    const prev = ownedRef.current;
+    const has = Boolean(prev[aura.id]);
+    const next: OwnedState = { ...prev };
     if (has) delete next[aura.id];
     else next[aura.id] = { count: 1, first_obtained_at: new Date().toISOString() };
+    ownedRef.current = next;
     setOwned(next);
 
     if (!has) {
@@ -310,17 +362,19 @@ export function AuraChecklist({
         console.error(error);
       }
     });
-  }
+  }, [readOnly, resolveUid, supabase]);
 
-  async function incrementCount(aura: Aura, delta: number) {
+  const incrementCount = useCallback((aura: Aura, delta: number) => {
     if (readOnly) return;
-    const current = owned[aura.id];
+    const prev = ownedRef.current;
+    const current = prev[aura.id];
     if (!current) return;
     const newCount = Math.max(1, current.count + delta);
     if (newCount === current.count) return;
 
-    const prev = owned;
-    setOwned({ ...owned, [aura.id]: { ...current, count: newCount } });
+    const next = { ...prev, [aura.id]: { ...current, count: newCount } };
+    ownedRef.current = next;
+    setOwned(next);
 
     startTransition(async () => {
       const uid = await resolveUid();
@@ -335,7 +389,7 @@ export function AuraChecklist({
         console.error(error);
       }
     });
-  }
+  }, [readOnly, resolveUid, supabase]);
 
   async function bulkMark(sectionAuras: Aura[], tier: Rarity) {
     if (readOnly) return;
@@ -623,138 +677,171 @@ function AuraGrid({
 }) {
   return (
     <ul className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-      {list.map((a, idx) => {
-        const r = a.rarity as Rarity;
-        const state = owned[a.id];
-        const has = Boolean(state);
-        const showCounter = COUNTER_RARITIES.has(r);
-        const rarityColor = RARITY_CLASS[r].split(" ")[0];
-        const isLimbo = a.biome === "The Limbo";
-        return (
-          <li
-            key={a.id}
-            onClick={() => onSelect?.(a)}
-            className={[
-              "card p-4 relative overflow-hidden transition-shadow",
-              onSelect ? "cursor-pointer hover:ring-1 hover:ring-[var(--border-strong)]" : "",
-              has ? "card-owned" : "",
-              isLimbo ? "card-limbo" : "",
-            ]
-              .filter(Boolean)
-              .join(" ")}
-          >
-            {/* Gothic cross-hatch overlay for Limbo cards — sits behind content */}
-            {isLimbo && <div className="limbo-ornament" aria-hidden />}
-            <div className={`absolute left-0 top-0 bottom-0 w-1 bg-rarity-${r}`} aria-hidden />
-
-            <div className="flex gap-3 pl-2">
-              {!readOnly && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); toggle(a); }}
-                  aria-label={has ? "Mark as missing" : "Mark as owned"}
-                  aria-pressed={has}
-                  data-checked={has}
-                  className={`checkbox mt-0.5 ${justToggled === a.id ? "animate-pop" : ""}`}
-                >
-                  {has && (
-                    <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden>
-                      <path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  )}
-                </button>
-              )}
-
-              <AuraThumb aura={a} rarity={r} owned={has} priority={idx < priorityCount} />
-
-              <div className="flex-1 min-w-0">
-                <h3 className={`font-medium leading-tight ${has ? "" : "text-[var(--foreground-muted)]"}`}>
-                  {a.name}
-                </h3>
-
-                <div className="text-xs text-[var(--foreground-faint)] mt-1 font-mono space-y-0.5">
-                  {showRarity && <div className={rarityColor}>{RARITY_LABEL[r]}</div>}
-                  <div>{formatOdds(a.rarity_odds)}</div>
-                  {a.biome && (
-                    <div>
-                      <span
-                        className={isLimbo ? "font-semibold tracking-wide" : ""}
-                        style={{ color: biomeByName(a.biome)?.color ?? "var(--foreground-muted)" }}
-                      >
-                        {a.biome}
-                      </span>
-                      {a.native_biome_odds && (
-                        <span className={`ml-1 ${rarityColor}`}>
-                          · {formatOdds(a.native_biome_odds)} native
-                        </span>
-                      )}
-                    </div>
-                  )}
-                  {a.event_name && (
-                    <div className="text-[var(--foreground-muted)]">
-                      {a.event_name}
-                      {a.event_year ? ` ${a.event_year}` : ""}
-                    </div>
-                  )}
-                </div>
-
-                {(() => {
-                  const badges: Obtainment[] = [];
-                  if (a.obtainment && a.obtainment !== "roll") badges.push(a.obtainment);
-                  if (a.secondary_obtainment) badges.push(a.secondary_obtainment);
-                  if (badges.length === 0) return null;
-                  return (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {badges.map((m) => (
-                        <ObtainmentBadge key={m} method={m} />
-                      ))}
-                    </div>
-                  );
-                })()}
-
-                {a.description && (() => {
-                  const parts = potionHighlightParts(a.description);
-                  return (
-                    <p className="text-xs text-[var(--foreground-muted)] mt-2 line-clamp-2 leading-relaxed">
-                      {parts ? (
-                        <>{parts.before}<span style={{ color: parts.color }}>{parts.match}</span>{parts.after}</>
-                      ) : a.description}
-                    </p>
-                  );
-                })()}
-
-                {has && showCounter && (
-                  <div className="mt-3 flex items-center gap-2 pt-3 border-t border-[var(--border)]">
-                    <span className="text-xs text-[var(--foreground-muted)]">Rolled</span>
-                    <div className="flex items-center ml-auto gap-1">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); incrementCount(a, -1); }}
-                        className="h-8 w-8 rounded-md border border-[var(--border)] hover:bg-[var(--card-hover)] text-sm leading-none disabled:opacity-40 touch-manipulation"
-                        disabled={state.count <= 1}
-                        aria-label="Decrease count"
-                      >
-                        −
-                      </button>
-                      <span className="text-sm font-mono font-semibold w-8 text-center tabular-nums">
-                        {state.count}×
-                      </span>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); incrementCount(a, 1); }}
-                        className="h-8 w-8 rounded-md border border-[var(--border)] hover:bg-[var(--card-hover)] text-sm leading-none touch-manipulation"
-                        aria-label="Increase count"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </li>
-        );
-      })}
+      {list.map((a, idx) => (
+        <AuraCard
+          key={a.id}
+          aura={a}
+          state={owned[a.id]}
+          justToggled={justToggled === a.id}
+          toggle={toggle}
+          incrementCount={incrementCount}
+          showRarity={showRarity}
+          readOnly={readOnly}
+          priority={idx < priorityCount}
+          onSelect={onSelect}
+        />
+      ))}
     </ul>
   );
 }
+
+const AuraCard = memo(function AuraCard({
+  aura,
+  state,
+  justToggled,
+  toggle,
+  incrementCount,
+  showRarity,
+  readOnly,
+  priority,
+  onSelect,
+}: {
+  aura: Aura;
+  state: OwnedState[number] | undefined;
+  justToggled: boolean;
+  toggle: (a: Aura) => void;
+  incrementCount: (a: Aura, d: number) => void;
+  showRarity: boolean;
+  readOnly: boolean;
+  priority: boolean;
+  onSelect?: (a: Aura) => void;
+}) {
+  const r = aura.rarity as Rarity;
+  const has = Boolean(state);
+  const showCounter = COUNTER_RARITIES.has(r);
+  const rarityColor = RARITY_CLASS[r].split(" ")[0];
+  const isLimbo = aura.biome === "The Limbo";
+  return (
+    <li
+      onClick={() => onSelect?.(aura)}
+      className={[
+        "card cv-auto p-4 relative overflow-hidden transition-shadow",
+        onSelect ? "cursor-pointer hover:ring-1 hover:ring-[var(--border-strong)]" : "",
+        has ? "card-owned" : "",
+        isLimbo ? "card-limbo" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      {/* Gothic cross-hatch overlay for Limbo cards — sits behind content */}
+      {isLimbo && <div className="limbo-ornament" aria-hidden />}
+      <div className={`absolute left-0 top-0 bottom-0 w-1 bg-rarity-${r}`} aria-hidden />
+
+      <div className="flex gap-3 pl-2">
+        {!readOnly && (
+          <button
+            onClick={(e) => { e.stopPropagation(); toggle(aura); }}
+            aria-label={has ? "Mark as missing" : "Mark as owned"}
+            aria-pressed={has}
+            data-checked={has}
+            className={`checkbox mt-0.5 ${justToggled ? "animate-pop" : ""}`}
+          >
+            {has && (
+              <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden>
+                <path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </button>
+        )}
+
+        <AuraThumb aura={aura} rarity={r} owned={has} priority={priority} />
+
+        <div className="flex-1 min-w-0">
+          <h3 className={`font-medium leading-tight ${has ? "" : "text-[var(--foreground-muted)]"}`}>
+            {aura.name}
+          </h3>
+
+          <div className="text-xs text-[var(--foreground-faint)] mt-1 font-mono space-y-0.5">
+            {showRarity && <div className={rarityColor}>{RARITY_LABEL[r]}</div>}
+            <div>{formatOdds(aura.rarity_odds)}</div>
+            {aura.biome && (
+              <div>
+                <span
+                  className={isLimbo ? "font-semibold tracking-wide" : ""}
+                  style={{ color: biomeByName(aura.biome)?.color ?? "var(--foreground-muted)" }}
+                >
+                  {aura.biome}
+                </span>
+                {aura.native_biome_odds && (
+                  <span className={`ml-1 ${rarityColor}`}>
+                    · {formatOdds(aura.native_biome_odds)} native
+                  </span>
+                )}
+              </div>
+            )}
+            {aura.event_name && (
+              <div className="text-[var(--foreground-muted)]">
+                {aura.event_name}
+                {aura.event_year ? ` ${aura.event_year}` : ""}
+              </div>
+            )}
+          </div>
+
+          {(() => {
+            const badges: Obtainment[] = [];
+            if (aura.obtainment && aura.obtainment !== "roll") badges.push(aura.obtainment);
+            if (aura.secondary_obtainment) badges.push(aura.secondary_obtainment);
+            if (badges.length === 0) return null;
+            return (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {badges.map((m) => (
+                  <ObtainmentBadge key={m} method={m} />
+                ))}
+              </div>
+            );
+          })()}
+
+          {aura.description && (() => {
+            const parts = potionHighlightParts(aura.description);
+            return (
+              <p className="text-xs text-[var(--foreground-muted)] mt-2 line-clamp-2 leading-relaxed">
+                {parts ? (
+                  <>{parts.before}<span style={{ color: parts.color }}>{parts.match}</span>{parts.after}</>
+                ) : aura.description}
+              </p>
+            );
+          })()}
+
+          {state && showCounter && (
+            <div className="mt-3 flex items-center gap-2 pt-3 border-t border-[var(--border)]">
+              <span className="text-xs text-[var(--foreground-muted)]">Rolled</span>
+              <div className="flex items-center ml-auto gap-1">
+                <button
+                  onClick={(e) => { e.stopPropagation(); incrementCount(aura, -1); }}
+                  className="h-8 w-8 rounded-md border border-[var(--border)] hover:bg-[var(--card-hover)] text-sm leading-none disabled:opacity-40 touch-manipulation"
+                  disabled={state.count <= 1}
+                  aria-label="Decrease count"
+                >
+                  −
+                </button>
+                <span className="text-sm font-mono font-semibold w-8 text-center tabular-nums">
+                  {state.count}×
+                </span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); incrementCount(aura, 1); }}
+                  className="h-8 w-8 rounded-md border border-[var(--border)] hover:bg-[var(--card-hover)] text-sm leading-none touch-manipulation"
+                  aria-label="Increase count"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </li>
+  );
+});
 
 const AuraThumb = memo(function AuraThumb({
   aura,
