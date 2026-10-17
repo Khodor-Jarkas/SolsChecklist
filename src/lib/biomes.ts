@@ -21,6 +21,8 @@ export type Biome = {
   notes?: string;
   /** Biome-exclusive item / material that drops here, if any. */
   material?: string;
+  /** Show a "New" badge on its card. */
+  isNew?: boolean;
 };
 
 export const BIOMES: Biome[] = [
@@ -135,6 +137,16 @@ export const BIOMES: Biome[] = [
     color: "#6b6b6b",
     material: "NULL?",
   },
+  {
+    name: "Lost Forest",
+    displayName: "Lost Forest",
+    category: "normal",
+    spawnOdds: 8400,
+    multiplier: "2× Breakthrough",
+    duration: "5 minutes",
+    color: "#70FF70",
+    isNew: true,
+  },
 
   // ---------- Rare biomes ----------
   {
@@ -177,6 +189,19 @@ export const BIOMES: Biome[] = [
     color: "#f97316",
     notes:
       "Spawned via the Singularity Catalyst or naturally. The biome ends immediately when a player rolls Astraios.",
+    isNew: true,
+  },
+  {
+    name: "The Radiant Forest",
+    displayName: "The Radiant Forest",
+    category: "rare",
+    spawnOdds: null,
+    multiplier: "2× Breakthrough",
+    duration: "22 minutes",
+    color: "#B736C2",
+    notes:
+      "Spawn condition unknown. Only appears at night. Has exclusive auras and a Biome Challenge; total luck ×1.0–1.2 from Moon Catch.",
+    isNew: true,
   },
   {
     name: "The Limbo",
@@ -306,25 +331,16 @@ export function biomeByName(name: string | null | undefined): Biome | undefined 
   return BIOME_BY_NAME.get(name);
 }
 
-// Name colours for newer biomes that don't have a full card in BIOMES yet
-// (spawn odds, duration etc. unknown). Keys are normalised (see below).
-const EXTRA_BIOME_COLORS: Record<string, string> = {
-  "radiant forest": "#B736C2",
-  "lost forest": "#70FF70",
-};
+// "The Radiant Forest" / "radiant forest" → "radiant forest", so a biome
+// typed slightly differently in the database still matches its entry here.
+export const normaliseBiome = (name: string) => name.trim().toLowerCase().replace(/^the\s+/, "");
 
-// "The Radiant Forest" / "radiant forest" → "radiant forest".
-const normaliseBiome = (name: string) => name.trim().toLowerCase().replace(/^the\s+/, "");
-
-const COLOR_BY_NORMALISED = new Map<string, string>([
-  ...BIOMES.map((b) => [normaliseBiome(b.name), b.color] as const),
-  ...Object.entries(EXTRA_BIOME_COLORS),
-]);
+const BIOME_BY_NORMALISED = new Map<string, Biome>(BIOMES.map((b) => [normaliseBiome(b.name), b]));
 
 /** Theme colour for a biome name, tolerant of case and a leading "The". */
 export function biomeColor(name: string | null | undefined): string | undefined {
   if (!name) return undefined;
-  return biomeByName(name)?.color ?? COLOR_BY_NORMALISED.get(normaliseBiome(name));
+  return (biomeByName(name) ?? BIOME_BY_NORMALISED.get(normaliseBiome(name)))?.color;
 }
 
 // Maps lowercase substrings that can appear in aura descriptions to the

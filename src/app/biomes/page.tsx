@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { createClient, getUser } from "@/lib/supabase/server";
 import { getAuraCatalog } from "@/lib/catalog";
-import { BIOMES, BIOME_CATEGORIES, type Biome } from "@/lib/biomes";
+import { BIOMES, BIOME_CATEGORIES, normaliseBiome, type Biome } from "@/lib/biomes";
 import { BiomeAuraList, type BiomeAura } from "@/components/BiomeAuraList";
 
 export const metadata: Metadata = {
@@ -22,12 +22,15 @@ export default async function BiomesPage() {
 
   const ownedIds = new Set((ownedRows ?? []).map((r) => r.aura_id));
 
+  // Keyed by normalised name so e.g. "Radiant Forest" in the database still
+  // lands on "The Radiant Forest"'s card.
   const aurasByBiome = new Map<string, BiomeAura[]>();
   for (const a of auras) {
     if (!a.biome) continue;
-    const list = aurasByBiome.get(a.biome) ?? [];
+    const key = normaliseBiome(a.biome);
+    const list = aurasByBiome.get(key) ?? [];
     list.push(a as BiomeAura);
-    aurasByBiome.set(a.biome, list);
+    aurasByBiome.set(key, list);
   }
   for (const list of aurasByBiome.values()) {
     list.sort((a, b) => (a.rarity_odds ?? 0) - (b.rarity_odds ?? 0));
@@ -64,7 +67,7 @@ export default async function BiomesPage() {
                 <BiomeCard
                   key={b.name}
                   biome={b}
-                  auras={aurasByBiome.get(b.name) ?? []}
+                  auras={aurasByBiome.get(normaliseBiome(b.name)) ?? []}
                   ownedIds={ownedIds}
                 />
               ))}
@@ -87,7 +90,7 @@ function BiomeCard({
 }) {
   const rolledHere = auras.length;
   const ownedHere = auras.filter((a) => ownedIds.has(a.id)).length;
-  const isNew = biome.name === "Singularity";
+  const isNew = Boolean(biome.isNew);
 
   return (
     <article
