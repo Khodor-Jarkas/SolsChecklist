@@ -306,6 +306,27 @@ export function biomeByName(name: string | null | undefined): Biome | undefined 
   return BIOME_BY_NAME.get(name);
 }
 
+// Name colours for newer biomes that don't have a full card in BIOMES yet
+// (spawn odds, duration etc. unknown). Keys are normalised (see below).
+const EXTRA_BIOME_COLORS: Record<string, string> = {
+  "radiant forest": "#B736C2",
+  "lost forest": "#70FF70",
+};
+
+// "The Radiant Forest" / "radiant forest" → "radiant forest".
+const normaliseBiome = (name: string) => name.trim().toLowerCase().replace(/^the\s+/, "");
+
+const COLOR_BY_NORMALISED = new Map<string, string>([
+  ...BIOMES.map((b) => [normaliseBiome(b.name), b.color] as const),
+  ...Object.entries(EXTRA_BIOME_COLORS),
+]);
+
+/** Theme colour for a biome name, tolerant of case and a leading "The". */
+export function biomeColor(name: string | null | undefined): string | undefined {
+  if (!name) return undefined;
+  return biomeByName(name)?.color ?? COLOR_BY_NORMALISED.get(normaliseBiome(name));
+}
+
 // Maps lowercase substrings that can appear in aura descriptions to the
 // canonical biome name in BIOMES. Handles variant phrasings like
 // "Potion of the Dune" vs "Dune Potion".

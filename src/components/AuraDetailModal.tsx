@@ -4,7 +4,7 @@ import { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 import { RARITY_CLASS, RARITY_LABEL, OBTAINMENT_LABEL, formatOdds } from "@/lib/rarity";
 import type { Obtainment, Rarity } from "@/lib/supabase/types";
-import { biomeByName, potionHighlightParts } from "@/lib/biomes";
+import { biomeColor, potionHighlightParts } from "@/lib/biomes";
 import { ProxiedImg } from "@/components/ProxiedImg";
 
 // Rarities where showing "rolled N×" is meaningful.
@@ -198,7 +198,7 @@ export function AuraDetailModal({
                   <dt className="text-[var(--foreground-muted)] w-20 shrink-0">Biome</dt>
                   <dd
                     className={isLimbo ? "font-semibold" : ""}
-                    style={{ color: biomeByName(aura.biome)?.color }}
+                    style={{ color: biomeColor(aura.biome) }}
                   >
                     {aura.biome}
                   </dd>

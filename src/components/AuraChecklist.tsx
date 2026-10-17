@@ -11,7 +11,7 @@ import {
   formatOdds,
 } from "@/lib/rarity";
 import type { Database, Obtainment, Rarity } from "@/lib/supabase/types";
-import { BIOMES, biomeByName, potionHighlightParts } from "@/lib/biomes";
+import { BIOMES, biomeColor, potionHighlightParts } from "@/lib/biomes";
 import { AuraDetailModal, ObtainmentBadge, COUNTER_RARITIES } from "@/components/AuraDetailModal";
 import { ProxiedImg } from "@/components/ProxiedImg";
 import { saveErrorMessage, useToast } from "@/components/Toast";
@@ -956,7 +956,7 @@ const AuraCard = memo(function AuraCard({
               <div>
                 <span
                   className={isLimbo ? "font-semibold tracking-wide" : ""}
-                  style={{ color: biomeByName(aura.biome)?.color ?? "var(--foreground-muted)" }}
+                  style={{ color: biomeColor(aura.biome) ?? "var(--foreground-muted)" }}
                 >
                   {aura.biome}
                 </span>
