@@ -49,3 +49,43 @@ update public.auras set obtainment = 'wheel' where name in (
   'StarRider : Snowflake',
   'Present', 'Skyforge', 'Christmastide'
 );
+
+-- Wiki sync 2026-11-06 — new event auras default to 'roll'
+update public.auras set obtainment = 'roll' where name in (
+  'Flushed : Pumpkinity',
+  'Enchanted',
+  'Lost Soul : Styx',
+  'Embercrypt',
+  'Ghost',
+  'Cauldron',
+  'Former Gardens',
+  'Hanahaki',
+  'Harvester : Necromancy',
+  'Withered',
+  'Rejoice',
+  'Gaze',
+  'Cruor',
+  'Cataclysmic',
+  'Acropolis',
+  'Deathkeeper',
+  'Raft',
+  'Buoyant',
+  'Breeze',
+  'Heatstroke',
+  'Floaty',
+  'Beach Ball',
+  'Watermelon : Summersnack',
+  'Vendor',
+  'Nostalgia',
+  'Coconut',
+  'FruitPunch',
+  'Goose Rave',
+  'Vacation',
+  'Bayview',
+  'Bubble : Cascade',
+  'Life Guard : On-Duty',
+  'Tropical Isles',
+  'Pool Party',
+  'Crabtropica',
+  'Centaurus'
+);

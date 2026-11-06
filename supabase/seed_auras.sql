@@ -307,3 +307,89 @@ insert into public.auras (name, rarity, rarity_odds, biome, description) values
   ('Matrix : Steampunk',   'craftable', null, null, 'Crafted aura.'),
   ('MasterHand',           'craftable', null, null, 'Crafted aura.')
 on conflict (name) do nothing;
+
+-- ============================================================================
+-- Wiki sync 2026-11-06 — auras added to the wiki since the last sync
+-- ============================================================================
+-- epic
+insert into public.auras (name, rarity, rarity_odds, biome) values
+  ('Penumbra', 'epic', 1010, null),
+  ('Umbra', 'epic', 1010, null),
+  ('HellFire', 'epic', 4776, 'Hell'),
+  ('Targeted', 'epic', 5000, null),
+  ('Watcher', 'epic', 5000, 'The Radiant Forest'),
+  ('Rekindle', 'epic', 7500, 'The Radiant Forest')
+on conflict (name) do nothing;
+
+-- unique
+insert into public.auras (name, rarity, rarity_odds, biome) values
+  ('Gilded : Crowned', 'unique', 20000, 'Sandstorm'),
+  ('Marsh', 'unique', 25000, 'Lost Forest')
+on conflict (name) do nothing;
+
+-- legendary
+insert into public.auras (name, rarity, rarity_odds, biome) values
+  ('Content Deleted', 'legendary', 4040, 'Glitched'),
+  ('Vortex', 'legendary', 399999, 'Windy'),
+  ('Artifact', 'legendary', 500000, 'Lost Forest'),
+  ('Veylune', 'legendary', 550000, 'Lost Forest')
+on conflict (name) do nothing;
+
+-- mythic
+insert into public.auras (name, rarity, rarity_odds, biome) values
+  ('Obsidian', 'mythic', 1750000, null),
+  ('Moonchild', 'mythic', 5000000, 'The Radiant Forest'),
+  ('Nightshade', 'mythic', 8262026, 'The Radiant Forest'),
+  ('Soultorn', 'mythic', 8333333, null),
+  ('Jade : Purity', 'mythic', 9250000, 'The Radiant Forest')
+on conflict (name) do nothing;
+
+-- exalted
+insert into public.auras (name, rarity, rarity_odds, biome) values
+  ('Empty', 'exalted', 11111111, 'Null'),
+  ('Graffiti', 'exalted', 12000000, null),
+  ('Imaginary', 'exalted', 12200200, 'The Limbo'),
+  ('Cor Lunae', 'exalted', 50000000, 'The Radiant Forest'),
+  ('Virtual : Ultimate', 'exalted', 80000000, 'Cyberspace'),
+  ('Hellbound', 'exalted', 85000000, 'Hell'),
+  ('Runic : Wilt', 'exalted', 87388744, 'Lost Forest'),
+  ('Quartz : Rose', 'exalted', 97500000, null)
+on conflict (name) do nothing;
+
+-- glorious
+insert into public.auras (name, rarity, rarity_odds, biome) values
+  ('Sharkyn : HammerHead', 'glorious', 120000000, 'Rainy'),
+  ('Bounded : Aichmalotos', 'glorious', 170000000, null),
+  ('Dreamer', 'glorious', 315000000, 'Nighttime'),
+  ('Cytokinesis', 'glorious', 330400472, 'Cyberspace'),
+  ('Volcanic', 'glorious', 480000000, 'Hell'),
+  ('Hasuen', 'glorious', 485000000, 'Lost Forest'),
+  ('Sloth', 'glorious', 650000000, null),
+  ('Eisveil', 'glorious', 830000000, 'Snowy'),
+  ('Poseidon : Atlantis', 'glorious', 850000000, 'Rainy')
+on conflict (name) do nothing;
+
+-- transcendent
+insert into public.auras (name, rarity, rarity_odds, biome) values
+  ('Tree House', 'transcendent', 3800000000, 'Lost Forest')
+on conflict (name) do nothing;
+
+-- craftable
+insert into public.auras (name, rarity, rarity_odds, biome, description) values
+  ('Abyssal Hunter : Awakened', 'craftable', null, null, 'Crafted aura.')
+on conflict (name) do nothing;
+
+-- challenged
+insert into public.auras (name, rarity, rarity_odds, biome, description) values
+  ('True Kyawthuite', 'challenged', 825000, 'The Radiant Forest', 'Obtained after rolling all Kyawthuite variants.'),
+  ('True Twilight', 'challenged', 6000000, 'The Radiant Forest', 'Obtained after rolling all Twilight variants.'),
+  ('True Jade', 'challenged', 10250000, 'The Radiant Forest', 'Obtained after rolling all Jade variants.'),
+  ('Dream Catcher', 'challenged', 2222222222, 'Nighttime', null),
+  ('Meta', 'challenged', 10000, 'Cyberspace', null)
+on conflict (name) do nothing;
+
+-- challenged_plus
+insert into public.auras (name, rarity, rarity_odds, biome, description) values
+  ('Hellborn', 'challenged_plus', 2644600640, 'Hell', null),
+  ('Tomorrow', 'challenged_plus', null, 'The Radiant Forest', 'Obtained after collecting The 7 Radiant Moons.')
+on conflict (name) do nothing;
