@@ -186,3 +186,47 @@ on conflict (name) do update set
   event_name = excluded.event_name,
   event_year = excluded.event_year,
   biome      = excluded.biome;
+
+-- Wiki sync 2026-11-06 — new event auras
+insert into public.auras (name, rarity, rarity_odds, event_name, event_year) values
+  -- Halloween 2026
+  ('Flushed : Pumpkinity', 'unique', 69000, 'Halloween', 2026),
+  ('Enchanted', 'legendary', 445000, 'Halloween', 2026),
+  ('Lost Soul : Styx', 'mythic', 2000000, 'Halloween', 2026),
+  ('Embercrypt', 'mythic', 9700000, 'Halloween', 2026),
+  ('Ghost', 'exalted', 10414606, 'Halloween', 2026),
+  ('Cauldron', 'exalted', 24000000, 'Halloween', 2026),
+  ('Former Gardens', 'exalted', 63000000, 'Halloween', 2026),
+  ('Hanahaki', 'exalted', 66000000, 'Halloween', 2026),
+  ('Harvester : Necromancy', 'glorious', 225000000, 'Halloween', 2026),
+  ('Withered', 'glorious', 283299000, 'Halloween', 2026),
+  ('Rejoice', 'glorious', 700000000, 'Halloween', 2026),
+  ('Gaze', 'glorious', 977000000, 'Halloween', 2026),
+  ('Cruor', 'craftable', null, 'Halloween', 2026),
+  ('Cataclysmic', 'craftable', null, 'Halloween', 2026),
+  ('Acropolis', 'craftable', null, 'Halloween', 2026),
+  ('Deathkeeper', 'craftable', null, 'Halloween', 2026),
+  -- Summer 2026
+  ('Raft', 'epic', 8000, 'Summer', 2026),
+  ('Buoyant', 'unique', 32000, 'Summer', 2026),
+  ('Breeze', 'unique', 80000, 'Summer', 2026),
+  ('Heatstroke', 'unique', 83430, 'Summer', 2026),
+  ('Floaty', 'legendary', 600000, 'Summer', 2026),
+  ('Beach Ball', 'mythic', 1938000, 'Summer', 2026),
+  ('Watermelon : Summersnack', 'mythic', 3200000, 'Summer', 2026),
+  ('Vendor', 'exalted', 17500000, 'Summer', 2026),
+  ('Nostalgia', 'exalted', 20270000, 'Summer', 2026),
+  ('Coconut', 'exalted', 34720000, 'Summer', 2026),
+  ('FruitPunch', 'exalted', 45000000, 'Summer', 2026),
+  ('Goose Rave', 'exalted', 50000000, 'Summer', 2026),
+  ('Vacation', 'exalted', 58620000, 'Summer', 2026),
+  ('Bayview', 'exalted', 60000000, 'Summer', 2026),
+  ('Bubble : Cascade', 'glorious', 110000000, 'Summer', 2026),
+  ('Life Guard : On-Duty', 'glorious', 600000000, 'Summer', 2026),
+  ('Tropical Isles', 'glorious', 730000000, 'Summer', 2026),
+  ('Pool Party', 'glorious', 972000000, 'Summer', 2026),
+  ('Crabtropica', 'transcendent', 1334221000, 'Summer', 2026),
+  ('Centaurus', 'transcendent', 3000000000, 'Summer', 2026)
+on conflict (name) do update set
+  event_name = excluded.event_name,
+  event_year = excluded.event_year;

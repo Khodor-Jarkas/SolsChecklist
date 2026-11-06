@@ -81,3 +81,12 @@ update public.achievements set image_url = 'https://static.wikia.nocookie.net/so
 update public.achievements set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/4/45/StarEggBadge.webp' where name = 'Star Egg';
 update public.achievements set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/b/bf/Theeggfromglitchedach.webp' where name = 'The egg from Glitched';
 update public.achievements set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/5/59/Pre-Sand_Worm_Slayer.png' where name = 'Pre-Sand Worm Slayer';
+update public.achievements set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/5/54/7.5B%2B_Aura_Badge_Icon.png' where name = 'My first 7.5B+ finding';
+update public.achievements set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/5/5c/Oppression_Badge.webp' where name = 'One who stands before God';
+update public.achievements set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/4/46/Famine_Slayer.png' where name = 'Famine Slayer';
+update public.achievements set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/3/3b/Galactic_Overload_Badge_Icon.png' where name = 'Galactic Overlord';
+update public.achievements set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/4/45/Monarch_icon.png' where name = 'Fate Sealer';
+update public.achievements set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/f/f6/They_who_bore_the_eternal_moon.png' where name = 'They Who Bore the Eternal Moon';
+update public.achievements set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/8/86/Singularity_Badge_Icon.png' where name = 'S i n g u l a r i t y';
+update public.achievements set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/3/30/Letting_go.png' where name = 'Letting Go';
+update public.achievements set image_url = 'https://static.wikia.nocookie.net/sol-rng/images/a/ae/Amalgamation_Hell_Mode.png' where name = '02. Amalgamation';
